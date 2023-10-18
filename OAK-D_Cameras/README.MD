@@ -1,5 +1,4 @@
-# 
-    Testing the OAK cameras
+# Testing the OAK cameras
 
 Currently you can test the camera(s) in two ways. Both are using Luxonis example repositorys.
 
