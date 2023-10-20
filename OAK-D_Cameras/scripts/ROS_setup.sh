@@ -2,9 +2,9 @@
 
 # Enable the Ubuntu Universe repository
 sudo apt update
-sudo apt install software-properties-common
+sudo apt install software-properties-common -y
 sudo add-apt-repository universe
-
+sudo apt install git -y
 # Add ROS2 GPG key and repository to the sources list
 sudo apt update
 sudo apt install curl -y
@@ -16,18 +16,18 @@ sudo apt update
 sudo apt upgrade
 
 # Install ROS packages
-sudo apt install ros-humble-desktop
-sudo apt install ros-humble-ros-base
-sudo apt install ros-dev-tools
+sudo apt install ros-humble-desktop -y
+sudo apt install ros-humble-ros-base -y
+sudo apt install ros-dev-tools -y
 
 # Install udev rules and depthai-ros package
 echo 'SUBSYSTEM=="usb", ATTRS{idVendor}=="03e7", MODE="0666"' | sudo tee /etc/udev/rules.d/80-movidius.rules
 sudo udevadm control --reload-rules && sudo udevadm trigger
-sudo apt install ros-humble-depthai-ros
+sudo apt install ros-humble-depthai-ros -y
 
 # Install Python dependencies
-sudo apt install libopencv-dev
-sudo apt install python-rosdep
+sudo apt install libopencv-dev -y
+sudo apt install python-rosdep -y
 rosdep init
 rosdep update
 
