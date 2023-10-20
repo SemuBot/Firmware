@@ -28,7 +28,9 @@ sudo udevadm control --reload-rules && sudo udevadm trigger
 sudo apt install ros-humble-depthai-ros -y
 
 # Install Python dependencies
-sudo apt install python3.10 -y
+sudo yes "" | sudo add-apt-repository ppa:deadsnakes/ppa
+sudo apt -y install python3.10
+sudo apt -y install python3.10-venv
 sudo apt install libopencv-dev -y
 sudo apt install python3-rosdep -y
 sudo rosdep init

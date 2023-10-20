@@ -1,10 +1,12 @@
 #!/bin/bash
 
 sudo apt install git -y
-sudo wget -qO- https://docs.luxonis.com/install_depthai.sh | bash
+git clone https://github.com/luxonis/depthai.git "SemuBot-Electronics/OAK-D-Cameras"
 
-cd depthai
+cd
+cd SemuBot-Electronics/OAK-D-Cameras/depthai
 sudo apt-get update -y
-sudo add-apt-repository ppa:deadsnakes/ppa
-sudo apt-get install python3.9 -y
+sudo yes "" | sudo add-apt-repository ppa:deadsnakes/ppa
+sudo apt -y install python3.10
+sudo apt -y install python3.10-venv
 python3 depthai_demo.py
