@@ -6,7 +6,7 @@ To get started, you can either follow the guide below, or just run the scripts i
 
 Everything is done in Ubuntu 22.04 and using ROS 2!
 
-# Running scripts
+## Running scripts
 
 Firstly, you need to install git onto your computer. If you already have git installed, ignore this step.
 

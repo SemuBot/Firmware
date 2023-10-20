@@ -28,7 +28,7 @@ sudo apt install ros-humble-depthai-ros -y
 # Install Python dependencies
 sudo apt install libopencv-dev -y
 sudo apt install python-rosdep -y
-rosdep init
+sudo rosdep init
 rosdep update
 
 # Clone example code repository and build
@@ -43,6 +43,5 @@ MAKEFLAGS="-j1 -l1" colcon build
 source install/setup.bash
 
 # Launch the example code
-cd camera
 source install/setup.bash
 ros2 launch depthai_examples stereo_inertial_node.launch.py
