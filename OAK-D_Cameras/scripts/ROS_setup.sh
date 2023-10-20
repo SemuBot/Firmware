@@ -5,6 +5,8 @@ sudo apt update
 sudo apt install software-properties-common -y
 echo "" | sudo add-apt-repository universe
 sudo apt install git -y
+
+
 # Add ROS2 GPG key and repository to the sources list
 sudo apt update
 sudo apt install curl -y
@@ -26,8 +28,9 @@ sudo udevadm control --reload-rules && sudo udevadm trigger
 sudo apt install ros-humble-depthai-ros -y
 
 # Install Python dependencies
+sudo apt install python3.10 -y
 sudo apt install libopencv-dev -y
-sudo apt install python-rosdep -y
+sudo apt install python3-rosdep -y
 sudo rosdep init
 rosdep update
 
