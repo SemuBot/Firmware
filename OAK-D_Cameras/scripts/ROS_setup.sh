@@ -3,12 +3,12 @@
 # Enable the Ubuntu Universe repository
 sudo apt update
 sudo apt install software-properties-common -y
-sudo add-apt-repository universe
+echo "" | sudo add-apt-repository universe
 sudo apt install git -y
 # Add ROS2 GPG key and repository to the sources list
 sudo apt update
 sudo apt install curl -y
-sudo curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
+echo "" | sudo curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
 echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | sudo tee /etc/apt/sources.list.d/ros2.list > /dev/null
 
 # Update repository caches and upgrade the system
@@ -32,6 +32,7 @@ rosdep init
 rosdep update
 
 # Clone example code repository and build
+cd ..
 mkdir -p camera/src
 cd camera/src
 git clone --branch humble https://github.com/luxonis/depthai-ros.git
