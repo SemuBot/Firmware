@@ -6,6 +6,18 @@ To get started, you can either follow the guide below, or just run the scripts i
 
 Everything is done in Ubuntu 22.04!
 
+To run the scripts, go into folder `/OAK-D_Cameras/scripts`,
+
+And run either `sh OpenCV_setup.sh` or `sh ROS_setup.sh` in the terminal.
+
+Basically run these commands
+
+```
+cd /OAK-D_Cameras/scripts
+sh OpenCV_setup.sh 
+sh ROS_setup.sh
+```
+
 ## Using with ROS
 
 Firstly, to use the camera with ROS, you need to install ROS on the system.
@@ -98,7 +110,6 @@ ros2 launch depthai_examples stereo_inertial_node.launch.py
 
 
 ```
-
 
 Now you can start testing the camera!
 
