@@ -4,16 +4,32 @@ Currently you can test the camera(s) in two ways. Both are using Luxonis example
 
 To get started, you can either follow the guide below, or just run the scripts in the ./scripts folder.
 
-Everything is done in Ubuntu 22.04!
+Everything is done in Ubuntu 22.04 and using ROS 2!
 
-To run the scripts, go into folder `/OAK-D_Cameras/scripts`,
+# Running scripts
+
+Firstly, you need to install git onto your computer. If you already have git installed, ignore this step.
+
+Start with running following command:
+
+```
+sudo apt install git -y
+```
+
+When everything is done, you can clone the repository into your computer with this command:
+
+```
+git clone https://github.com/MedvedEE/SemuBot-Electronics.git
+```
+
+To run the scripts, go into folder `SemuBot-Electronics/OAK-D_Cameras/scripts`,
 
 And run either `sh OpenCV_setup.sh` or `sh ROS_setup.sh` in the terminal.
 
 Basically run these commands
 
 ```
-cd /OAK-D_Cameras/scripts
+cd SemuBot-Electronics/OAK-D_Cameras/scripts
 sh OpenCV_setup.sh 
 sh ROS_setup.sh
 ```
@@ -125,8 +141,6 @@ And to run it, run this command:
 source install/setup.bash
 ros2 launch depthai_ros_driver rtabmap.launch.py
 ```
-
-d
 
 ## Using with OpenCV
 
