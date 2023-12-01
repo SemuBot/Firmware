@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RGB Input</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        form {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+        }
+
+        input {
+            width: 70%;
+            padding: 8px;
+            margin-bottom: 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px; /* Adjust font size as needed */
+        }
+
+        input[type="number"] {
+            -moz-appearance: textfield; /* Firefox */
+        }
+
+        input[type="submit"] {
+            background-color: #4caf50;
+            color: #fff;
+            cursor: pointer;
+        }
+
+        div {
+            width: 30px;
+            height: 50px;
+            background-color: rgb({{ red }}, {{ green }}, {{ blue }});
+            margin-top: 10px;
+        }
+
+        p {
+            margin-top: 10px;
+            color: #555;
+            font-size: 14px; /* Adjust font size as needed */
+        }
+    </style>
+</head>
+<body>
+    <h1>Enter RGB Values</h1>
+    <form method="post">
+        <label for="red">Red:</label>
+        <input type="number" name="red" id="red" required min="0" max="255" value="{{ settings['rgb_values']['red'] }}">
+        <label for="green">Green:</label>
+        <input type="number" name="green" id="green" required min="0" max="255" value="{{ settings['rgb_values']['green'] }}">
+        <label for="blue">Blue:</label>
+        <input type="number" name="blue" id="blue" required min="0" max="255" value="{{ settings['rgb_values']['blue'] }}">
+        <label for="led_count">LED Count:</label>
+        <input type="number" name="led_count" id="led_count" required min="0" value="{{ settings['led_count'] }}">
+        <input type="submit" value="Submit">
+    </form>
+</body>
+</html>
