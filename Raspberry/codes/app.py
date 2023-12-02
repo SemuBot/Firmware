@@ -5,7 +5,7 @@ import neopixel
 app = Flask(__name__)
 
 settings = {'led_count': 0, 'rgb_values': {'red': 0, 'green': 0, 'blue': 0}}
-connected_pin = board.D18
+connected_pin = board.D10
 num_pixels = 30  # Default value
 ORDER = neopixel.GRB
 pixels = neopixel.NeoPixel(connected_pin, num_pixels, brightness=0.2, auto_write=False, pixel_order=ORDER)
@@ -34,4 +34,6 @@ def light_LED(R, G, B, pixel_count):
     pixels.show()
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0')
+    website_url = 'controls:5000'
+    app.config['SERVER_NAME'] = website_url 
+    app.run()

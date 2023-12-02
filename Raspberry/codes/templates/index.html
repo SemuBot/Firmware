@@ -48,7 +48,7 @@
             -moz-appearance: textfield; /* Firefox */
         }
 
-        input[type="submit"] {
+        input[type="submit"], input[type="file"] {
             background-color: #19611c;
             color: #fff;
             cursor: pointer;
@@ -70,7 +70,7 @@
 </head>
 <body>
     <h1>Enter RGB Values</h1>
-    <form method="post">
+    <form method="post" enctype="multipart/form-data">
         <label for="red">Red:</label>
         <input type="number" name="red" id="red" required min="0" max="255" value="{{ settings['rgb_values']['red'] }}">
         <label for="green">Green:</label>
@@ -79,6 +79,8 @@
         <input type="number" name="blue" id="blue" required min="0" max="255" value="{{ settings['rgb_values']['blue'] }}">
         <label for="led_count">LED Count:</label>
         <input type="number" name="led_count" id="led_count" required min="0" value="{{ settings['led_count'] }}">
+        <label for="image">Upload Image:</label>
+        <input type="file" name="image" id="image" accept="image/*">
         <input type="submit" value="Submit">
     </form>
 </body>
