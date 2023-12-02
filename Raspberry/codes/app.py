@@ -28,12 +28,10 @@ def process_form():
     return render_template('index.html', settings=settings)
 
 def light_LED(R, G, B, pixel_count):
-    global pixels
-    pixels = neopixel.NeoPixel(connected_pin, pixel_count, brightness=0.2, auto_write=False, pixel_order=ORDER)
+    print("R:",R,"G",G,"B","Count:",pixel_count)
     pixels.fill((R, G, B))
     pixels.show()
+    
 
 if __name__ == '__main__':
-    website_url = 'controls:5000'
-    app.config['SERVER_NAME'] = website_url 
-    app.run()
+    app.run(debug=True, host='0.0.0.0')
