@@ -51,5 +51,5 @@ def light_LED(R, G, B, pixel_count):
     pixels.fill((R, G, B))
     pixels.show()
 
-
+if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')
