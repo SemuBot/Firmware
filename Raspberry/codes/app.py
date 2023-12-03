@@ -18,6 +18,12 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 def index():
     return render_template('index.html', settings=settings)
 
+
+@app.route('/face')
+def about():
+    return render_template('webpage.html')
+
+
 @app.route('/', methods=['POST'])
 def process_form():
     if 'red' in request.form and 'green' in request.form and 'blue' in request.form:
