@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request,send_file
 import board
 import neopixel
 import os
@@ -23,6 +23,9 @@ def index():
 def refresh_webpage():
     return render_template('webpage.html')
 
+@app.route('/image')
+def get_image():
+    return send_file('/home/semubot/uploads/uploaded_image.jpg', mimetype='image/jpg')
 
 
 @app.route('/', methods=['POST'])
