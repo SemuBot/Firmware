@@ -19,9 +19,10 @@ def index():
     return render_template('index.html', settings=settings)
 
 
-@app.route('/face')
-def about():
+@app.route('/refresh_webpage')
+def refresh_webpage():
     return render_template('webpage.html')
+
 
 
 @app.route('/', methods=['POST'])

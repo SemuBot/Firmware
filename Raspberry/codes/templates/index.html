@@ -83,5 +83,22 @@
         <input type="file" name="image" id="image" accept="image/*">
         <input type="submit" value="Submit">
     </form>
+    <script>
+        // Function to refresh the 'webpage.html' after form submission
+        function refreshWebpage() {
+            $.ajax({
+                url: '/refresh_webpage',
+                method: 'GET',
+                success: function(response) {
+                    console.log('Webpage refreshed successfully');
+                }
+            });
+        }
+
+        // Submit form and refresh the other page
+        $('form').submit(function() {
+            refreshWebpage();
+        });
+    </script>
 </body>
 </html>
