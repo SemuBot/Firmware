@@ -23,7 +23,15 @@
 </head>
 <body>
 
-    <img src="/image">
+    <script>
+        function getRandomNumber() {
+            return Math.floor(Math.random() * 100000);
+        }
+        // Get the image element by its ID
+        var imgElement = document.querySelector('img');
+        // Append a random number to the image source
+        imgElement.src = '/image?' + getRandomNumber();
+    </script>
 
 </body>
 </html>
