@@ -4,16 +4,14 @@ int buttonState = 0;
 
 void setup() {
   pinMode(BUTTON_PIN, INPUT);
-  pinMode(LED_PIN, OUTPUT);
   Serial.begin(9600);
 }
 
 void loop() {
   buttonState = digitalRead(BUTTON_PIN);
-
   if (buttonState == HIGH) {
-    Serial.print("Detected!");
+    Serial.println("Detected!");
   } else {
-    Serial.print("-----------------------");
+    Serial.println("-----------------------");
   }
 }
