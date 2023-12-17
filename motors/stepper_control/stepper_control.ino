@@ -1,7 +1,7 @@
 #include <SPI.h>
 #include <TMC26XStepper.h> //NB Install the library first
 
-int speed = 10;
+int speed = 20;
 int start = 0;
 int initialPosition = 0;
 
@@ -22,19 +22,20 @@ void setup() {
     // Set up the stepper driver
     tmc26XStepper.setSpreadCycleChopper(2, 24, 8, 6, 0);
     tmc26XStepper.setRandomOffTime(0);
-    tmc26XStepper.SPI_setCoilCurrent(50);
-    tmc26XStepper.setMicrosteps(128);
+    tmc26XStepper.SPI_setCoilCurrent(200);
+    tmc26XStepper.setMicrosteps(50);
     tmc26XStepper.setStallGuardThreshold(4, 0);
     Serial.println("Config finished, starting");
 
     initialPosition = tmc26XStepper.getMotorPosition();
     Serial.println(initialPosition);
+    updown();
 }
 
 void down() {
     int steps = 200; 
     tmc26XStepper.SPI_setSpeed(speed);
-    tmc26XStepper.SPI_step(-steps); 
+    tmc26XStepper.SPI_step(-500); 
     tmc26XStepper.spi_start();
     start -= steps; 
     delay(delayValue);
@@ -44,7 +45,7 @@ void down() {
 void up() {
     int steps = 200;
     tmc26XStepper.SPI_setSpeed(speed);
-    tmc26XStepper.SPI_step(steps);
+    tmc26XStepper.SPI_step(500);
     tmc26XStepper.spi_start();
     start += steps;
     delay(delayValue);
@@ -60,6 +61,15 @@ void startPosition(){
     start = initialPosition;
 
 }
+
+
+void updown(){
+  up();
+  down();
+  down();
+  up();
+}
+
 void loop() {
     if (Serial.available() > 0) {
         String input = Serial.readStringUntil('\n');
@@ -70,7 +80,9 @@ void loop() {
             up();
         } else if (input == "down") {
             down();
-        } else if (input.toInt() != 0) {
+        } else if (input == "updown"){
+          updown();
+    }else if (input.toInt() != 0) {
             int steps = input.toInt();
             tmc26XStepper.SPI_setSpeed(speed);
             tmc26XStepper.SPI_step(steps);
