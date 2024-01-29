@@ -59,7 +59,6 @@ void startPosition(){
     tmc26XStepper.SPI_step(stepsBack);
     tmc26XStepper.spi_start();
     start = initialPosition;
-
 }
 
 
