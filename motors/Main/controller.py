@@ -2,60 +2,81 @@ from pydualsense import *
 import serial
 import time
 
-COM = "COM5"
+COM = "COM6"
 BAUD_RATE = 115200
-def send_command_to_arduino(command, arduino_serial):
-    arduino_serial.write(command.encode())
-    time.sleep(0.1)  # Adjust as needed
+speed = 50
+steps_to_send = 0
+arduino = serial.Serial(port=COM,baudrate=BAUD_RATE)
+
+
+def write_read(x):
+    arduino.write(bytes(x,   'utf-8'))
+    time.sleep(0.5)
+    #data = arduino.readline()
+    #return   data
+
+def linear_map(x, in_min, in_max, out_min, out_max):
+    return int((x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min)
 
 def main():
-    arduino_serial = None
+    #arduino_serial = None
     try:
         # Initialize DualSense dualsense
         dualsense = pydualsense()
         dualsense.init()
+        dualsense.light.setColorI(255, 165, 0)
+        #dualsense.triggerL.setMode(TriggerModes.Rigid  )
+        #dualsense.triggerL.setForce(1, 255)
 
-        arduino_serial = serial.Serial(COM, BAUD_RATE)
+        #dualsense.triggerR.setMode(TriggerModes.Rigid  )
+        #dualsense.triggerR.setForce(0, 200)
+        #dualsense.triggerR.setForce(1, 255)
+        #dualsense.triggerR.setForce(2, 175)
 
         print("DualSense initialized. Press R2 to send command to Arduino.")
+        while True:
+            # Check R1 button press
+            if dualsense.state.R1:
+                raise KeyboardInterrupt  # Raise KeyboardInterrupt to exit the loop
 
-        while not dualsense.state.R1:
             # Check R2 button press
+            r2_state = dualsense.state.R2
 
-            speed_to_send = int(map(dualsense.state.R2, 0, 255, 0, 100))  # Map R2 pressure to speed in the range 0-100
-            if dualsense.state.R2 > 20:
-                steps_to_send = 100  # Replace with the desired number of steps
-                command_to_send = f"up_{steps_to_send}_{speed_to_send}"
-                # Send "up" command to Arduino
-                send_command_to_arduino(command_to_send, arduino_serial)
+            if r2_state > 20:
+                steps_to_send = linear_map(r2_state, 20, 255, 10, 1000)
+                up(steps_to_send,speed)
+            elif dualsense.state.L2 > 20:
+                steps_to_send = linear_map(dualsense.state.L2, 20, 255, 10, 1000)
+                down(steps_to_send,speed)
+            elif dualsense.state.square:
+                up(500,speed)
+            elif dualsense.state.circle:
+                down(500,speed)
 
-                print(f"Command sent to Arduino: {command_to_send}")
-
-            # Check L2 button press
-            speed_to_send = int(map(dualsense.state.L2, 0, 255, 0, 100))  # Map R2 pressure to speed in the range 0-100
-
-            if dualsense.state.L2 > 20:
-                steps_to_send = 100  # Replace with the desired number of steps
-                command_to_send = f"up_{steps_to_send}_{speed_to_send}"
-                # Send "down" command to Arduino
-                send_command_to_arduino(command_to_send, arduino_serial)
-
-                print(f"Command sent to Arduino: {command_to_send}")
-            if arduino_serial.in_waiting > 0:
-                arduino_data = arduino_serial.readline().decode('utf-8').rstrip()
-
-                # Check if the received data is "Maximum"
-                if arduino_data == "Maximum":
-                    dualsense.setLeftMotor(255)
-                    dualsense.setRightMotor(255)
-            time.sleep(0.1)  # Adjust the delay as needed
 
     except KeyboardInterrupt:
         print("Exiting.")
-    finally:
-        if arduino_serial is not None and hasattr(arduino_serial, 'close'):
-            # Close the serial connection
-            arduino_serial.close()  
+        dualsense.triggerL.setForce(0, 0)
+        dualsense.triggerR.setForce(0, 0)
+        dualsense.close()
+
+def down(steps,speedtosend):
+    command_to_send = f"down_{steps}_{speedtosend}"
+    write_read(command_to_send)
+    time.sleep(0.01)
+    write_read("")
+    time.sleep(0.01)
+    print(f"Command sent to Arduino: {command_to_send}")
+
+def up(steps,speedtosend):
+    command_to_send = f"up_{steps}_{speedtosend}"
+    write_read(command_to_send)
+    time.sleep(0.01)
+    write_read("")
+    time.sleep(0.01)
+    print(f"Command sent to Arduino: {command_to_send}")
+
+
 
 if __name__ == "__main__":
     main()

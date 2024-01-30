@@ -2,11 +2,11 @@
 #define STEPPERMOTORS_H
 #include <Arduino.h>
 
-#define CS 2
-#define DIR 6
-#define STEP_PIN 7
+#define CS 6
+#define DIR 4
+#define STEP_PIN 5
 #define STEPS_PER_ROTATION 200
-#define CURRENT 2000
+#define CURRENT 800
 #define DELAY_VALUE 500
 #define SPEED 20
 #define UPPER_LIMIT 30000

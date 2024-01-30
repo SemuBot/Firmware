@@ -6,6 +6,7 @@ void encoderSetup(){
     pinMode(SSI_SCK, OUTPUT);
     pinMode(SSI_CS, OUTPUT);
     pinMode(SSI_SDO, INPUT);
+    Serial.println("ENCODERS");
 }
 
 uint16_t getEncoderPosition() {
