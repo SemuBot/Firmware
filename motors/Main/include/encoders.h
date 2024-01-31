@@ -14,17 +14,23 @@
 #define ON              1
 
 /* pins */
-#define SSI_CS          1 // Brown
-#define SSI_SCK         2 // Orange
-#define SSI_SDO         3 // green
+#define SSI_CS          5 // Brown
+#define SSI_SCK         3 // Orange
+#define SSI_SDO         2 // green
                         // Blue is 5V
                         // Red is GND
 #define res12           12 //resolution is 12 bits
 #define baudRate        115200
 
+#define UPPER_LIMIT 1900
+#define LOWER_LIMIT 100
+
+extern uint16_t encoderPosition; // holder for encoder position
+
 void encoderSetup();
-void encoderLoop();
+void encoderUpdate();
 uint16_t getPositionSSI(uint8_t resolution);
 uint16_t getPositionSSI_efficient(uint8_t resolution);
 uint16_t getEncoderPosition();
+
 #endif // ENCODERS_H

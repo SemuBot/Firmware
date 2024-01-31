@@ -9,8 +9,6 @@
 #define CURRENT 800
 #define DELAY_VALUE 500
 #define SPEED 20
-#define UPPER_LIMIT 30000
-#define LOWER_LIMIT 100
 
 
 
@@ -18,8 +16,9 @@ extern uint16_t encoderValue;
 
 
 void motorSetup();
-void down(int steps, int speedToSet);
-void up(int steps, int speedToSet);
+void down(int steps, int speedToSet, int encoderValue2);
+void up(int steps, int speedToSet, int encoderValue2);
+void stop();
 void setSpeed(int speed);
 
 #endif // STEPPERMOTORS_H

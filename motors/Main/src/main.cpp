@@ -3,19 +3,23 @@
 #include "encoders.h"
 #include "StepperMotors.h"
 
+void encoder();
 
 void setup() {
   Serial.begin(baudRate);
   encoderSetup();
   motorSetup();
-  Serial.println("Config finished, starting");
+  Serial.println("Encoder setup Config finished, starting");
 
 }
 
 
 void loop() {
-  encoderLoop();
-  Serial.println(getEncoderPosition());
+  encoderUpdate();
+  encoderValue = getEncoderPosition();
+  Serial.print("Value: ");
+  Serial.println(encoderValue);
+
   // Check for incoming serial data
   if (Serial.available() > 0) {
     String command = Serial.readStringUntil('\n');
@@ -24,20 +28,13 @@ void loop() {
       // Extract the steps and speed numbers from the command
       int stepsToMove = command.substring(3, command.lastIndexOf('_')).toInt();
       int speedToSet = command.substring(command.lastIndexOf('_') + 1).toInt();
-      Serial.println(command);
-      // Move the motor up
-      //Serial.println("Moving up");
-      //Serial.print("Stepstomove:");
-      //Serial.println(stepsToMove);
-      //Serial.print("Speedtoset:");
-      //Serial.println(speedToSet);
-      up(stepsToMove,speedToSet);
+      up(stepsToMove,speedToSet,encoderValue);
     } else if (command.startsWith("down")) {
       // Extract the steps number from the command
       int stepsToMove = command.substring(5).toInt();
       int speedToSet = command.substring(command.lastIndexOf('_') + 1).toInt();
       // Move the motor down
-      down(stepsToMove,speedToSet);
+      down(stepsToMove,speedToSet,encoderValue);
     }
   }
 }

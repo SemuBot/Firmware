@@ -41,12 +41,12 @@ def main():
 
             # Check R2 button press
             r2_state = dualsense.state.R2
-
-            if r2_state > 20:
-                steps_to_send = linear_map(r2_state, 20, 255, 10, 1000)
+            #print(arduino.readline())
+            if r2_state > 40:
+                steps_to_send = linear_map(r2_state, 40, 255, 10, 100)
                 up(steps_to_send,speed)
-            elif dualsense.state.L2 > 20:
-                steps_to_send = linear_map(dualsense.state.L2, 20, 255, 10, 1000)
+            elif dualsense.state.L2 > 40:
+                steps_to_send = linear_map(dualsense.state.L2, 40, 255, 10, 100)
                 down(steps_to_send,speed)
             elif dualsense.state.square:
                 up(500,speed)

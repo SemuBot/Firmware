@@ -1,6 +1,6 @@
 #include "encoders.h"
 
-uint16_t encoderPosition; // holder for encoder position
+uint16_t encoderPosition = 0;
 
 void encoderSetup(){
     pinMode(SSI_SCK, OUTPUT);
@@ -12,23 +12,20 @@ uint16_t getEncoderPosition() {
     return encoderPosition;
 }
 
-
-void encoderLoop(){
+void encoderUpdate(){
     uint8_t attempts; //we can use this for making sure position is valid
     //set attemps counter at 0 so we can try again if we get bad position    
     attempts = 0;
-
     encoderPosition = getPositionSSI(res12); 
     while (encoderPosition == 0xFFFF && attempts++ < 3)
     {
       delay(1);
       encoderPosition = getPositionSSI(res12); //try again
     }
-
-    //Serial.print(encoderPosition); 
-    //Serial.write(newLine);
     delay(500);
 }
+
+
 
 /*
  * Use this function to understand how the SSI protocol works first, then you can use the function
