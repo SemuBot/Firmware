@@ -21,7 +21,6 @@ void motorSetup(){
   tmc26XStepper.setMicrosteps(128);
   tmc26XStepper.setStallGuardThreshold(4, 0);
   Serial.println("Motor Config finished, starting");
-  initialPosition = tmc26XStepper.getMotorPosition();
 }
 
 void down(int steps, int speedToSet) {

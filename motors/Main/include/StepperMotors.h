@@ -14,7 +14,6 @@
 
 
 
-extern int initialPosition;
 extern uint16_t encoderValue;
 
 

@@ -14,9 +14,9 @@
 #define ON              1
 
 /* pins */
-#define SSI_CS          7 // Brown
-#define SSI_SCK         10 // Orange
-#define SSI_SDO         11 // green
+#define SSI_CS          1 // Brown
+#define SSI_SCK         2 // Orange
+#define SSI_SDO         3 // green
                         // Blue is 5V
                         // Red is GND
 #define res12           12 //resolution is 12 bits

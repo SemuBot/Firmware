@@ -6,7 +6,6 @@ void encoderSetup(){
     pinMode(SSI_SCK, OUTPUT);
     pinMode(SSI_CS, OUTPUT);
     pinMode(SSI_SDO, INPUT);
-    Serial.println("ENCODERS");
 }
 
 uint16_t getEncoderPosition() {
@@ -26,8 +25,8 @@ void encoderLoop(){
       encoderPosition = getPositionSSI(res12); //try again
     }
 
-    Serial.print(encoderPosition); 
-    Serial.write(newLine);
+    //Serial.print(encoderPosition); 
+    //Serial.write(newLine);
     delay(500);
 }
 
