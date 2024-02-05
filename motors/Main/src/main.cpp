@@ -16,6 +16,9 @@ void setup() {
 
 void loop() {
   encoderUpdate();
+  up(300,50,10);
+  delay(1000);
+  down(300,50,10);
   encoderValue = getEncoderPosition();
   Serial.print("Value: ");
   Serial.println(encoderValue);
