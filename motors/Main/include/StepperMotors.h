@@ -10,15 +10,14 @@
 #define DELAY_VALUE 500
 #define SPEED 20
 
-
-
 extern uint16_t encoderValue;
 
 
 void motorSetup();
-void down(int steps, int speedToSet, int encoderValue2);
-void up(int steps, int speedToSet, int encoderValue2);
+void down(int steps, int speedToSet);
+void down2(int steps, int speedToSet);
+void up(int steps, int speedToSet);
 void stop();
 void setSpeed(int speed);
-
+char isMotorMoving();
 #endif // STEPPERMOTORS_H

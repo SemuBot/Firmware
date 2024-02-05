@@ -7,15 +7,6 @@ TMC26XStepper tmc26XStepper = TMC26XStepper(STEPS_PER_ROTATION, CS, DIR, STEP_PI
 
 uint16_t encoderValue = 0;
 
-
-void setSpeed(int speed){
-    tmc26XStepper.SPI_setSpeed(speed);
-}
-
-int linear_map(int x, int in_min, int in_max, int out_min, int out_max) {
-    return static_cast<int>((x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min);
-}
-
 void motorSetup(){
   tmc26XStepper.setSpreadCycleChopper(2, 24, 8, 6, 0);
   tmc26XStepper.setRandomOffTime(0);
@@ -25,22 +16,32 @@ void motorSetup(){
   Serial.println("Motor Config finished, starting");
 }
 
-void down(int steps, int speedToSet, int encoderValue2) {
-    //int test = linear_map(encoderValue,0,100,0,4096);
-    //if (encoderValue2 < UPPER_LIMIT){
+
+void setSpeed(int speed){
+    tmc26XStepper.SPI_setSpeed(speed);
+}
+
+char isMotorMoving(){
+  return tmc26XStepper.isMoving();
+}
+
+void down(int steps, int speedToSet) {
       tmc26XStepper.SPI_setSpeed(speedToSet);
       tmc26XStepper.SPI_step(-steps); 
       tmc26XStepper.spi_start();
-    //}
+      
 }
 
-void up(int steps, int speedToSet, int encoderValue2) {
-    //if (encoderValue2 < UPPER_LIMIT){
+void down2(int steps, int speedToSet){
+    tmc26XStepper.setSpeed(speedToSet);
+    tmc26XStepper.step(10*speedToSet);
+    tmc26XStepper.move();
+    Serial.println("Moving down.");
+}
+void up(int steps, int speedToSet) {
       tmc26XStepper.SPI_setSpeed(speedToSet);
       tmc26XStepper.SPI_step(steps); 
       tmc26XStepper.spi_start();
-    //}
-
 }
 
 void stop(){
