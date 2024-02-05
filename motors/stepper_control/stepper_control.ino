@@ -1,18 +1,18 @@
 #include <SPI.h>
 #include <TMC26XStepper.h> //NB Install the library first
 
-int speed = 20;
 int start = 0;
 int initialPosition = 0;
 
 int CS = 6;
 int dir = 4;
-int stepPin = 5;
-int stepsPerRotation = 200;
+int stepPin = 7;
+int stepsPerRotation = 400;
 int current = 800;
 int delayValue = 500;
-
-int speed =  0;
+int curr_step;
+int speed =  1000;
+int speedDirection = 100;
 int maxSpeed = 1000;
 
 TMC26XStepper tmc26XStepper = TMC26XStepper(stepsPerRotation,CS,dir,stepPin,current);
@@ -29,6 +29,7 @@ void setup() {
   Serial.println("Config finished, starting");
 
 }
+/*
 void loop() {
   if (Serial.available() > 0) {
     String command = Serial.readStringUntil('\n');
@@ -51,17 +52,85 @@ void loop() {
     }
   }
 }
+*/
 
+void loop() {
+  down(50,550);
+  //int test = tmc26XStepper.getCurrentStallGuardReading();
+  //up(50,50);
+  Serial.print("Steps left: ");
+  Serial.println(tmc26XStepper.getStepsLeft() % 100);
+  while (tmc26XStepper.getStepsLeft() % 100 == 0) {
+    //Serial.println("Stall Guard: ");
+    int test = tmc26XStepper.getCurrentStallGuardReading();
+    //Serial.println(tmc26XStepper.getCurrentStallGuardReading());
+  }
+  //tmc26XStepper.move();
+  //delay(2000);
+}
 void down(int steps, int speedToSet) {
-  
-    tmc26XStepper.setSpeed(speedToSet);
-    tmc26XStepper.step(10*speedToSet);
+  if (!tmc26XStepper.isMoving()) {
+    //speed += speedDirection;
+
+    if (speed > maxSpeed) {
+      speed = maxSpeed;
+    }
+
+    // Setting the speed
+    Serial.print("Setting speed to ");
+    Serial.println(speed);
+
+    tmc26XStepper.setSpeed(speed);
+
+    // Moving the motor for a certain number of steps based on the speed
+    Serial.print("Going ");
+    Serial.print(10 * speed);
+    Serial.println(" steps");
+    
+    tmc26XStepper.step(10 * speed);
     tmc26XStepper.move();
-    Serial.println("Moving down.");
+
+  } else {
+    // Output the status every 100 steps
+  
+    if (tmc26XStepper.getStepsLeft() % 100 == 0) {
+      Serial.print("Stall Guard: ");
+      Serial.println(tmc26XStepper.getCurrentStallGuardReading());
+    }
+  }
+
+  tmc26XStepper.move();
 }
 
 void up(int steps, int speedToSet) {
-    tmc26XStepper.SPI_setSpeed(speedToSet);
-    tmc26XStepper.SPI_step(steps); 
-    tmc26XStepper.spi_start();
+  if (!tmc26XStepper.isMoving()) {
+    //speed += speedDirection;
+
+    if (speed > maxSpeed) {
+      speed = maxSpeed;
+    }
+
+    // Setting the speed
+    Serial.print("Setting speed to ");
+    Serial.println(speed);
+
+    tmc26XStepper.setSpeed(speed);
+
+    // Moving the motor for a certain number of steps based on the speed
+    Serial.print("Going ");
+    Serial.print(10 * speed);
+    Serial.println(" steps");
+    
+    tmc26XStepper.step(-10 * speed);
+    tmc26XStepper.move();
+
+  } else {
+    // Output the status every 100 steps
+    if (tmc26XStepper.getStepsLeft() % 100 == 0) {
+      Serial.print("Stall Guard: ");
+      Serial.println(tmc26XStepper.getCurrentStallGuardReading());
+    }
+  }
+
+  tmc26XStepper.move();
 }
