@@ -122,7 +122,7 @@ class TMC26XStepper {
      * \sa start(), setMicrosteps()
      */
 	TMC26XStepper(int number_of_steps, int cs_pin, int dir_pin, int step_pin, unsigned int current, unsigned int resistor=150);
-	void TMC26XSet_SPICS(int cs_pin);
+	
     /*!
      * \brief configures and starts the TMC26X stepper driver. Before you called this function the stepper driver is in nonfunctional mode.
      *
@@ -130,8 +130,8 @@ class TMC26XStepper {
      * Most member functions are non functional if the driver has not been started.
      * Therefore it is best to call this in your Arduino setup() function.
      */
-	char spi_start();
- 
+	void start();
+    
     /*!
      * \brief resets the stepper in unconfigured mode.
      *
@@ -150,8 +150,7 @@ class TMC26XStepper {
      * \param whatSpeed the desired speed in rotations per minute.
      */
     void setSpeed(unsigned int whatSpeed);
-    void SPI_setSpeed(unsigned int whatSpeed);
-	void SPI_setCoilCurrent(int Current);
+    
     /*!
      * \brief reads out the currently selected speed in revolutions per minute.
      * \sa setSpeed()
@@ -193,8 +192,8 @@ class TMC26XStepper {
      * You can always verify with isMoving() or even use stop() to stop the motor before giving it new step directions.
      * \sa isMoving(), getStepsLeft(), stop()
      */
-    char step(int steps_to_move);
-    char SPI_step(int spi_steps_to_move);
+    char step(int number_of_steps);
+    
     /*!
      * \brief Central movement method, must be called as often as possible in the lopp function and is very fast.
      *
@@ -567,13 +566,12 @@ class TMC26XStepper {
 
   private:    
   	unsigned int steps_left;		//the steps the motor has to do to complete the movement
-    unsigned int spi_steps;		//the steps the motor has to do to complete the movement SPI MODE
     int direction;        // Direction of rotation
     unsigned long step_delay;    // delay between steps, in ms, based on speed
     int number_of_steps;      // total number of steps this motor can take
     unsigned int speed; // we need to store the current speed in order to change the speed after changing microstepping
     unsigned int resistor; //current sense resitor value in milliohm
-    unsigned coilcnt;    
+        
     unsigned long last_step_time;      // time stamp in ms of when the last step was taken
     unsigned long next_step_time;      // time stamp in ms of when the last step was taken
 	
@@ -585,7 +583,7 @@ class TMC26XStepper {
 	unsigned long driver_configuration_register_value;
 	//the driver status result
 	unsigned long driver_status_result;
-	unsigned long HexDecimalCurrent;
+	
 	//helper routione to get the top 10 bit of the readout
 	inline int getReadoutValue();
 	
@@ -606,4 +604,3 @@ class TMC26XStepper {
 };
 
 #endif
-

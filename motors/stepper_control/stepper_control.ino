@@ -4,10 +4,10 @@
 int start = 0;
 int initialPosition = 0;
 
-int CS = 6;
-int dir = 7;
-int stepPin = 8;
-int stepsPerRotation = 800;
+int CS = 8;
+int dir = 13;
+int stepPin = 11;
+int stepsPerRotation = 200;
 int current = 800;
 int delayValue = 500;
 int curr_step;
@@ -24,21 +24,14 @@ void setup() {
     // Set up the stepper driver
   tmc26XStepper.setSpreadCycleChopper(2, 24, 8, 6, 0);
   tmc26XStepper.setRandomOffTime(0);
-  tmc26XStepper.SPI_setCoilCurrent(50);
-  //tmc26XStepper.setMicrosteps(248);
+  //tmc26XStepper.SPI_setCoilCurrent(100);
+  tmc26XStepper.setMicrosteps(128);
   tmc26XStepper.setStallGuardThreshold(4, 0);
   Serial.println("Config finished, starting");
 }
 // down(50,3);
 // up(50,3);
 void loop() {
-  up(50,50);
-  while (tmc26XStepper.isMoving()){
-    tmc26XStepper.getCurrentStallGuardReading();
-    tmc26XStepper.move();
-  }
-  Serial.println("Moving");
-  delay(2000);
   if (Serial.available() > 0) {
     String command = Serial.readStringUntil('\n');
     // Process the received command
@@ -48,7 +41,7 @@ void loop() {
       int speedToSet = command.substring(command.lastIndexOf('_') + 1).toInt();
 
       // Move the motor up
-      Serial.print("Moving up");
+      Serial.println("Moving up");
       up(stepsToMove,speedToSet);
       while (tmc26XStepper.isMoving()){
         tmc26XStepper.getCurrentStallGuardReading();
@@ -76,9 +69,9 @@ void down(int steps, int speedToSet) {
     tmc26XStepper.setSpeed(speedToSet*10);
     // Moving the motor for a certain number of steps based on the speed
     Serial.print("Going ");
-    Serial.print(10 * speed);
+    Serial.print(-steps);
     Serial.println(" steps");
-    tmc26XStepper.step(-1000 * steps);
+    tmc26XStepper.step(-steps);
   }
 }
 void up(int steps, int speedToSet) {
@@ -86,10 +79,8 @@ void up(int steps, int speedToSet) {
     tmc26XStepper.setSpeed(speedToSet*10);
     // Moving the motor for a certain number of steps based on the speed
     Serial.print("Going ");
-    Serial.print(10 * speed);
+    Serial.print(steps);
     Serial.println(" steps");
-    tmc26XStepper.step(100);
+    tmc26XStepper.step(steps);
   }
 }
-
-void test()
