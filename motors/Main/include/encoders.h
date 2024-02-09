@@ -1,7 +1,7 @@
 #ifndef ENCODERS_H
 #define ENCODERS_H
 #include <Arduino.h>
-#include "pins.h"
+#include "variables.h"
 
 #define NOP __asm__ __volatile__ ("nop\n\t")
 

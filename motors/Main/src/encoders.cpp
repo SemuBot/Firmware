@@ -3,9 +3,10 @@
 uint16_t encoderPosition = 0;
 
 void encoderSetup(){
-    pinMode(SSI_SCK, OUTPUT);
-    pinMode(SSI_CS, OUTPUT);
-    pinMode(SSI_SDO, INPUT);
+  pinMode(ENCODER_SCK, OUTPUT);
+  pinMode(ENCODER_CS, OUTPUT);
+  pinMode(ENCODER_SDO, INPUT);
+  Serial.println("Encoder setup Config finished, starting");
 }
 
 uint16_t getEncoderPosition() {
@@ -22,7 +23,7 @@ void encoderUpdate(){
       delay(1);
       encoderPosition = getPositionSSI(res12); //try again
     }
-    delay(500);
+    //delay(500);
 }
 
 
@@ -41,7 +42,7 @@ uint16_t getPositionSSI(uint8_t resolution)
   bool checkBit0, checkBit1; //the frist two bits in the position response are checkbits used to check the validity of the position response
 
   //drop cs low and wait the minimum required time. This is done with NOPs
-  digitalWrite(SSI_CS, LOW);
+  digitalWrite(ENCODER_CS, LOW);
   for (i = 0; i < 5; i++) NOP;
 
   //We will clock the encoder the number of times (resolution + 2), incrementing with 'j'
@@ -51,17 +52,17 @@ uint16_t getPositionSSI(uint8_t resolution)
   for (j = 0; j < _clockCounts; j++)
   {
     //first we lower the clock line and wait until the pin state has fully changed
-    digitalWrite(SSI_SCK, LOW);
+    digitalWrite(ENCODER_SCK, LOW);
     for (i = 0; i < 10; i++) NOP;
 
     //now we go high with the clock. no need to wait with NOPs because the pin read we'll do next times sufficient time
-    digitalWrite(SSI_SCK, HIGH);
+    digitalWrite(ENCODER_SCK, HIGH);
     
     //Grab the data off of the SDO line and place it into the binary array
-    binaryArray[j] = digitalRead(SSI_SDO);
+    binaryArray[j] = digitalRead(ENCODER_SDO);
   }
   //release cs line, position has been fully received
-  digitalWrite(SSI_CS, HIGH);
+  digitalWrite(ENCODER_CS, HIGH);
 
   //now we'll reverse the order of the binary array so that the bit ordering matches binary
   for (i = 0, j = _clockCounts - 1; i < (_clockCounts / 2); i++, j--)
@@ -104,7 +105,7 @@ uint16_t getPositionSSI_efficient(uint8_t resolution)
   uint8_t checkBit1, checkBit0; //the frist two bits in the position response are checkbits used to check the validity of the position response
 
   //drop cs low and wait the minimum required time. This is done with NOPs
-  digitalWrite(SSI_CS, LOW);
+  digitalWrite(ENCODER_CS, LOW);
   for (i = 0; i < 5; i++) NOP;
 
   //We will clock the encoder the number of times (resolution + 2), incrementing with 'j'
@@ -114,17 +115,17 @@ uint16_t getPositionSSI_efficient(uint8_t resolution)
   for (j = 0; j < _clockCounts; j++)
   {
     //first we lower the clock line and wait until the pin state has fully changed
-    digitalWrite(SSI_SCK, LOW);
+    digitalWrite(ENCODER_SCK, LOW);
     for (i = 0; i < 10; i++) NOP;
 
     //now we go high with the clock. no need to wait with NOPs because the pin read we'll do next times sufficient time
-    digitalWrite(SSI_SCK, HIGH);
+    digitalWrite(ENCODER_SCK, HIGH);
     
     //throw the pin value into the position, note that it's reversing it as well
-    currentPosition |= (digitalRead(SSI_SDO) << (_clockCounts - j - 1));
+    currentPosition |= (digitalRead(ENCODER_SDO) << (_clockCounts - j - 1));
   }
   //release cs line, position has been fully received
-  digitalWrite(SSI_CS, HIGH);
+  digitalWrite(ENCODER_CS, HIGH);
 
 
   //grab the highest two bits and put them into the checkbit holders
