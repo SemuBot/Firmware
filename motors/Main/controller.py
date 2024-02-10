@@ -2,7 +2,7 @@ from pydualsense import *
 import serial
 import time
 
-COM = "COM6"
+COM = "COM8"
 BAUD_RATE = 115200
 speed = 50
 steps_to_send = 0
@@ -41,7 +41,7 @@ def main():
 
             # Check R2 button press
             r2_state = dualsense.state.R2
-            #print(arduino.readline())
+            print(arduino.readline())
             if r2_state > 40:
                 steps_to_send = linear_map(r2_state, 40, 255, 10, 100)
                 up(steps_to_send,speed)
@@ -49,9 +49,9 @@ def main():
                 steps_to_send = linear_map(dualsense.state.L2, 40, 255, 10, 100)
                 down(steps_to_send,speed)
             elif dualsense.state.square:
-                up(500,speed)
+                up(5000)
             elif dualsense.state.circle:
-                down(500,speed)
+                down(5000)
 
 
     except KeyboardInterrupt:
@@ -60,16 +60,16 @@ def main():
         dualsense.triggerR.setForce(0, 0)
         dualsense.close()
 
-def down(steps,speedtosend):
-    command_to_send = f"down_{steps}_{speedtosend}"
+def down(steps):
+    command_to_send = f"down_{steps}"
     write_read(command_to_send)
     time.sleep(0.01)
     write_read("")
     time.sleep(0.01)
     print(f"Command sent to Arduino: {command_to_send}")
 
-def up(steps,speedtosend):
-    command_to_send = f"up_{steps}_{speedtosend}"
+def up(steps):
+    command_to_send = f"up_{steps}"
     write_read(command_to_send)
     time.sleep(0.01)
     write_read("")

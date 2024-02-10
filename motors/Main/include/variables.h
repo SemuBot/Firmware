@@ -4,9 +4,9 @@
 
 /* Stepper driver pins*/
 // Motor 1
-#define MOTOR1_DIR 7
-#define MOTOR1_STEP_PIN 4
-#define MOTOR1_EN_PIN 12
+#define MOTOR1_DIR 11
+#define MOTOR1_STEP_PIN 9
+#define MOTOR1_EN_PIN 13
 
 /* Encoder pins */
 #define ENCODER_CS          2 // Brown

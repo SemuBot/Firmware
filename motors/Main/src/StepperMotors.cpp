@@ -37,5 +37,6 @@ void startMotor(Motor &motor){
 }
 void stopMotor(Motor &motor) {
   motor.moving = false;
+  digitalWrite(motor.enPin, LOW);
   set_Steps(motor,0);
 }
