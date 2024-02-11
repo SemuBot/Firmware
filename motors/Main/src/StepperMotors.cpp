@@ -11,13 +11,14 @@ void initMotor(const Motor &motor){
 
 void moveMotor(Motor &motor){
   if (motor.moving && motor.steps != 0){
+    Serial.println("Moving");
     digitalWrite(motor.dirPin, (motor.steps > 0) ? HIGH : LOW);
-    digitalWrite(motor.enPin, HIGH);
+    //digitalWrite(motor.enPin, HIGH);
     digitalWrite(motor.stepPin, HIGH);
     delayMicroseconds(motor.speed);
     digitalWrite(motor.stepPin, LOW);
     delayMicroseconds(motor.speed);
-    digitalWrite(motor.enPin, LOW);
+    //digitalWrite(motor.enPin, LOW);
     if (motor.steps > 0) {
       motor.steps--;
     } else {
@@ -37,6 +38,6 @@ void startMotor(Motor &motor){
 }
 void stopMotor(Motor &motor) {
   motor.moving = false;
-  digitalWrite(motor.enPin, LOW);
+ // digitalWrite(motor.enPin, LOW);
   set_Steps(motor,0);
 }

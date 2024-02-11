@@ -17,8 +17,8 @@
 #define res12           12 //resolution is 12 bits
 #define baudRate        115200
 
-#define ENCODER_LIMIT_UPPER 1200 //The middle position, when arm is horisontally to the ground, value is 4000. ~90degrees up and down equals to 1900.
-#define ENCODER_LIMIT_LOWER 1000 //The middle position, when arm is horisontally to the ground, value is 4000. ~90degrees up and down equals to 1900.
+#define ENCODER_LIMIT_UPPER 4000 //The middle position, when arm is horisontally to the ground, value is 4000. ~90degrees up and down equals to 1900.
+#define ENCODER_LIMIT_LOWER 950 //The middle position, when arm is horisontally to the ground, value is 4000. ~90degrees up and down equals to 1900.
 
 extern uint16_t encoderPosition; // holder for encoder position
 

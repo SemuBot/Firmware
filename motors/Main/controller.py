@@ -36,22 +36,28 @@ def main():
         print("DualSense initialized. Press R2 to send command to Arduino.")
         while True:
             # Check R1 button press
+            #print(dualsense.state.LY)
             if dualsense.state.R1:
                 raise KeyboardInterrupt  # Raise KeyboardInterrupt to exit the loop
 
             # Check R2 button press
-            r2_state = dualsense.state.R2
+            y_state = dualsense.state.LY
+            #print(y_state)
             print(arduino.readline())
-            if r2_state > 40:
-                steps_to_send = linear_map(r2_state, 40, 255, 10, 100)
-                up(steps_to_send,speed)
-            elif dualsense.state.L2 > 40:
-                steps_to_send = linear_map(dualsense.state.L2, 40, 255, 10, 100)
-                down(steps_to_send,speed)
-            elif dualsense.state.square:
+            if y_state > 10:
+                #steps_to_send = linear_map(y_state, 40, 255, 10, 100)
+                down(2000)
+                print("Sent down")
+            if y_state < 0:
+                #steps_to_send = linear_map(dualsense.state.L2, 40, 255, 10, 100)
+                up(2000)
+                print("Sent up")
+            if dualsense.state.square:
                 up(5000)
-            elif dualsense.state.circle:
+            if dualsense.state.circle:
                 down(5000)
+            if dualsense.state.triangle:
+                sendStop()
 
 
     except KeyboardInterrupt:
@@ -76,7 +82,13 @@ def up(steps):
     time.sleep(0.01)
     print(f"Command sent to Arduino: {command_to_send}")
 
-
+def sendStop():
+    command_to_send = f"stop"
+    write_read(command_to_send)
+    time.sleep(0.01)
+    write_read("")
+    time.sleep(0.01)
+    print(f"Command sent to Arduino: {command_to_send}")
 
 if __name__ == "__main__":
     main()

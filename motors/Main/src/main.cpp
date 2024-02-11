@@ -54,12 +54,13 @@ void setup() {
 
 void loop() {
   encoderUpdate();
-  Serial.print("Encoder:");
-  Serial.println(encoderPosition);
+  //Serial.print("Encoder:");
+  //Serial.println(encoderPosition);
+  Serial.println(digitalRead(motor1.enPin));
   if (!debug){
-    if (encoderPosition < ENCODER_LIMIT_UPPER){
-      //stopMotor(motor1);
-      set_Steps(motor1,-200);
+    if ((encoderPosition < ENCODER_LIMIT_LOWER && encoderPosition > 800) || (encoderPosition > 700 && encoderPosition < 900)){
+      stopMotor(motor1);
+      //set_Steps(motor1,-200);
     } 
   }
   moveMotor(motor1);
