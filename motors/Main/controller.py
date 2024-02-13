@@ -43,7 +43,7 @@ def main():
             # Check R2 button press
             y_state = dualsense.state.LY
             #print(y_state)
-            print(arduino.readline())
+            #print(arduino.readline())
             if y_state > 10:
                 #steps_to_send = linear_map(y_state, 40, 255, 10, 100)
                 down(2000)
