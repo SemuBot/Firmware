@@ -20,6 +20,7 @@ void getEncoderPosition(Encoder* encoders){
   }
 }
 
+
 void encoderUpdate(Encoder* encoders){
   for (int i = 0; i < NUM_ENCODERS; i++) {
     uint8_t attempts; //we can use this for making sure position is valid

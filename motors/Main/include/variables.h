@@ -30,6 +30,7 @@
 const int NUM_ENCODERS = 2;
 
 struct Motor {
+  String name;
   int dirPin;
   int stepPin;
   int enPin;
@@ -41,7 +42,7 @@ struct Motor {
 struct Encoder {
   int cs_pin;
   uint16_t data;
-  uint16_t previous_data;
+  Motor motor;
 };
 
 #endif 
