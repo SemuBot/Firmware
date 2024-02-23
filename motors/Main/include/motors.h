@@ -1,8 +1,8 @@
 #include <Arduino.h>
 #include "variables.h"
 
-#ifndef STEPPERMOTORS_H
-#define STEPPERMOTORS_H
+#ifndef MOTORS_H
+#define MOTORS_H
 
 void initMotor(const Motor &motor);
 void moveMotor(Motor &motor);
@@ -11,4 +11,4 @@ void stopMotor(Motor &motor);
 void startMotor(Motor &motor);
 
 
-#endif // STEPPERMOTORS_H
+#endif // MOTORS_H

@@ -22,10 +22,11 @@
 
 extern uint16_t encoderPosition; // holder for encoder position
 
-void encoderSetup();
-void encoderUpdate();
-uint16_t getPositionSSI(uint8_t resolution);
-uint16_t getPositionSSI_efficient(uint8_t resolution);
-uint16_t getEncoderPosition();
+
+
+void setupEncoders(Encoder* encoders);
+void encoderUpdate(Encoder* encoders);
+uint16_t getPositionSSI(uint8_t resolution, Encoder &encoders);
+void getEncoderPosition(Encoder* encoders);
 
 #endif // ENCODERS_H

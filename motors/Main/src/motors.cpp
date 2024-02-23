@@ -1,4 +1,4 @@
-#include "StepperMotors.h"
+#include "motors.h"
 #include "encoders.h"
 
 
@@ -11,7 +11,6 @@ void initMotor(const Motor &motor){
 
 void moveMotor(Motor &motor){
   if (motor.moving && motor.steps != 0){
-    Serial.println("Moving");
     digitalWrite(motor.dirPin, (motor.steps > 0) ? HIGH : LOW);
     digitalWrite(motor.enPin, HIGH);
     digitalWrite(motor.stepPin, HIGH);
