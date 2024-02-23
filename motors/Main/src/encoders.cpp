@@ -7,8 +7,8 @@ void setupEncoders(Encoder* encoders){
   pinMode(ENCODER_SDO, INPUT);
   for (int i = 0; i < NUM_ENCODERS; i++) {
     pinMode(encoders[i].cs_pin,OUTPUT);
-  Serial.println("Encoder setup Config finished, starting");
   }
+  Serial.println("Encoder setup finished!");
 }
 
 void getEncoderPosition(Encoder* encoders){
@@ -38,10 +38,6 @@ void encoderUpdate(Encoder* encoders){
 
 
 
-/*
- * Use this function to understand how the SSI protocol works first, then you can use the function
- * below that has better efficiency.
- */
 uint16_t getPositionSSI(uint8_t resolution, Encoder &encoder)
 {
   uint8_t i, j; //we'll use these incrementers

@@ -4,7 +4,7 @@
 #ifndef MOTORS_H
 #define MOTORS_H
 
-void initMotor(const Motor &motor);
+void setupMotors(Motor* motors);
 void moveMotor(Motor &motor);
 void set_Steps(Motor &motor, int steps);
 void stopMotor(Motor &motor);

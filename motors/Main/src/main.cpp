@@ -12,49 +12,21 @@ Encoder encoder2 = {ENCODER_CS_2, 0, shoulderMotor};
 bool debug = true;
 int previousEncoder;
 
-int test = 0;
 Encoder encoderList[NUM_ENCODERS];
+Motor motorList[NUM_MOTORS];
+
 
 void setup() {
   Serial.begin(baudRate);
   encoderList[0] = encoder1;
   encoderList[1] = encoder2;
-  initMotor(elbowMotor);
-  initMotor(shoulderMotor);
+  motorList[0] = elbowMotor;
+  motorList[1] = shoulderMotor;
+  setupMotors(motorList);
   setupEncoders(encoderList);
   encoderUpdate(encoderList);
-  /*
-  set_Steps(motor1,200);
+  Serial.println("Setup finished!"), Serial.println("Starting");
 
-  previousEncoder = encoderPosition;
-  while(encoderPosition < ENCODER_LIMIT){
-    startMotor(motor1);
-    Serial.println("HERE");
-    while(true){
-        encoderUpdate();
-        if (test == 0){
-          previousEncoder = encoderPosition;
-          test++;
-        }
-        moveMotor(motor1);
-        
-        Serial.print("Encoderposition:");
-        Serial.println(encoderPosition);
-        Serial.print("Previousencoder: ");
-        Serial.println(previousEncoder);
-
-        if (encoderPosition < previousEncoder && test <50 && motor1.steps == 0){
-          set_Steps(motor1,-400);
-          Serial.println("Forward");
-        } else if (encoderPosition > previousEncoder && test <50 && motor1.steps == 0) {
-          set_Steps(motor1,400);
-          Serial.println("Back");
-        }
-      if (encoderPosition > ENCODER_LIMIT) break;
-    }
-  }
-  stopMotor(motor1);
-  */
 }
 void encoderCheck(Encoder* encoders){
     for (int i = 0; i < NUM_ENCODERS; i++){
@@ -82,13 +54,10 @@ Motor get_motor_name(const String &motorName) {
 
 void loop() {
   encoderUpdate(encoderList);
-  //Serial.println(motor1.steps);
-  //Serial.print("Encoder:");
-  //Serial.println(encoderPosition);
-  getEncoderPosition(encoderList);
-  
   if (!debug){
       encoderCheck(encoderList);
+  } else{
+    getEncoderPosition(encoderList);
   }
   
   moveMotor(elbowMotor);

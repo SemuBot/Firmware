@@ -28,7 +28,7 @@
                         // Red is GND
 
 const int NUM_ENCODERS = 2;
-
+const int NUM_MOTORS = 2;
 struct Motor {
   String name;
   int dirPin;

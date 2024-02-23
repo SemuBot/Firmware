@@ -2,9 +2,13 @@
 #include "encoders.h"
 
 
-void initMotor(const Motor &motor){
-  pinMode(motor.dirPin, OUTPUT);
-  pinMode(motor.stepPin, OUTPUT);
+void setupMotors(Motor* motors){
+  for (int i = 0; i < NUM_MOTORS; i++){
+    pinMode(motors[i].dirPin, OUTPUT);
+    pinMode(motors[i].enPin, OUTPUT);
+    pinMode(motors[i].stepPin, OUTPUT);
+  }
+  Serial.println("Motors setup finished!");
 }
 
 
@@ -32,8 +36,6 @@ void moveMotor(Motor &motor){
 void set_Steps(Motor &motor, int steps){
   motor.steps = steps;
 }
-
-
 
 void startMotor(Motor &motor){
   motor.moving = true;
