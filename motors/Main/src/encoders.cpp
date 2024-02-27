@@ -32,7 +32,7 @@ void encoderUpdate(Encoder* encoders){
       delay(1);
       encoders[i].data = getPositionSSI(res12, encoders[i]); //try again
     }
-    delay(100);
+    //delay(100);
   }
 }
 

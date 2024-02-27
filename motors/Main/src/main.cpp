@@ -56,40 +56,43 @@ void loop() {
   encoderUpdate(encoderList);
   if (!debug){
       encoderCheck(encoderList);
+      Serial.println("Mitte siin");
   } else{
     getEncoderPosition(encoderList);
   }
   
   moveMotor(elbowMotor);
   moveMotor(shoulderMotor);
-
-
  if (Serial.available() > 0) {
     String command = Serial.readStringUntil('\n');
     
     if (command.startsWith("motor")) {
-      String motorName = command.substring(5, command.indexOf('_')); // Extract motor name
-      String action = command.substring(command.indexOf('_') + 1, command.indexOf('_', command.indexOf('_') + 1)); // Extract action (up/down)
+      String motorName = command.substring(command.indexOf('_') + 1, command.indexOf('_', command.indexOf('_') + 1)); //command.substring(3, command.indexOf('_')); // Extract motor name
+      String action = command.substring(command.indexOf('_', command.indexOf('_') + 1) + 1, command.indexOf('_', command.indexOf('_', command.indexOf('_') + 1) + 1));
       int stepsToMove = command.substring(command.lastIndexOf('_') + 1).toInt(); // Extract steps
 
       Serial.println("Motor: " + motorName + ", Action: " + action + ", Steps: " + String(stepsToMove));
-
-      
-      Motor motor = get_motor_name(motorName);
-
-      if (motor.name != "") { 
-        if (motor.name == "elbow") {
-          if (action == "up") {
-            set_Steps(motor, stepsToMove);
-            startMotor(motor);
-          } else if (action == "down") {
-            set_Steps(motor, -stepsToMove);
-            startMotor(motor);
-          } else if (action == "stop") {
-            Serial.println("STOPPING Motor");
-            stopMotor(motor);
-          }
+      if (action == "up") {
+        if (motorName == "elbow"){
+          set_Steps(elbowMotor,stepsToMove);
+          startMotor(elbowMotor);
+        } else{
+          set_Steps(shoulderMotor,stepsToMove);
+          startMotor(shoulderMotor);
         }
+      } else if (action == "down") {
+        if (motorName == "shoulder") {
+          set_Steps(shoulderMotor, -stepsToMove);
+          startMotor(shoulderMotor);
+        } else {
+          set_Steps(elbowMotor, -stepsToMove);
+          startMotor(elbowMotor);
+        }
+
+      } else if (action == "stop") {
+        Serial.println("STOPPING Motors");
+        stopMotor(elbowMotor);
+        stopMotor(shoulderMotor);
       }
     }
   }
