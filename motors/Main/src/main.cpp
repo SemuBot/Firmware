@@ -69,6 +69,7 @@ Motor* getMotorByName(const String& motorName) {
   } else if (motorName == "motor5") {
     return &motor5;
   } else {
+    Serial.println(motorName);
     Serial.println("Invalid motor name");
     return nullptr;
   }
@@ -77,9 +78,11 @@ void loop() {
   encoderUpdate(encoderList);
   if (!debug) {
     encoderCheck(encoderList);
-  } else {
-    getEncoderPosition(encoderList);
   }
+  //} else {
+
+//    getEncoderPosition(encoderList);
+ // }
 
   moveMotor(elbowMotor);
   moveMotor(shoulderMotor);
@@ -100,6 +103,7 @@ void loop() {
       if (action == "up") {
         Motor* motor = getMotorByName(motorName);
         if (motor != nullptr) {
+          Serial.println("Moving");
           set_Steps(*motor, stepsToMove);
           startMotor(*motor);
         }
@@ -117,6 +121,17 @@ void loop() {
         stopMotor(motor4);
         stopMotor(motor5);
       }
+    } else if (command.startsWith("all")){
+      set_Steps(elbowMotor,5000);
+      set_Steps(shoulderMotor,5000);
+      set_Steps(motor3,5000);
+      set_Steps(motor4,5000);
+      set_Steps(motor5,5000);
+      startMotor(elbowMotor);
+      startMotor(shoulderMotor);
+      startMotor(motor3);
+      startMotor(motor4);
+      startMotor(motor5);
     }
   }
 }

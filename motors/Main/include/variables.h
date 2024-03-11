@@ -13,12 +13,12 @@
 
 #define MOTOR2_DIR 5
 #define MOTOR2_STEP_PIN 6
-#define MOTOR2_EN_PIN 7
+#define MOTOR2_EN_PIN 8
 
 
 // Motor 3
 
-#define MOTOR3_DIR 8
+#define MOTOR3_DIR 81
 #define MOTOR3_STEP_PIN 9
 #define MOTOR3_EN_PIN 10
 
