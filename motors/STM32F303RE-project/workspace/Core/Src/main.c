@@ -24,6 +24,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "motors.h"
 #include "variables.h"
 /* USER CODE END Includes */
 
@@ -45,7 +46,6 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-#define MOVE_DURATION 10 // 5 seconds in milliseconds
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -61,10 +61,13 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
 
   if (htim->Instance == TIM3) {
-	    HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
+	    HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_5);
   }
 }
 
+
+
+struct Motors motor1;
 
 /* USER CODE END 0 */
 
@@ -107,10 +110,16 @@ int main(void)
   //HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_2); // Set DIR high for one direction
   //HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_3); // Set EN high to enable the driver
   //TIM1->CCR1 = 0;
-  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1); //Start timer
-  HAL_GPIO_WritePin(MOTOR1_DIR_PORT, MOTOR1_DIR_PIN, GPIO_PIN_RESET); // Set DIR high for one direction
 
-  moveMotor();
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1); //Start timer
+  motor1.DIR_PIN = MOTOR1_DIR_PIN;
+  motor1.STEP_PIN = MOTOR1_STEP_PIN;
+  motor1.EN_PIN = MOTOR1_EN_PIN;
+  motor1.SPEED = 100;
+  motor1.STEPS = 200;
+  motor1.TIMER = TIM1;
+  moveMotor(&motor1);
+
   //HAL_TIM_Base_Start_IT(&htim1);
   /* USER CODE END 2 */
 
@@ -119,6 +128,7 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
+	  moveMotor(&motor1);
 
     /* USER CODE BEGIN 3 */
   }
@@ -176,39 +186,21 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+
+
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
   // Check if the button (PC13) is pressed
   if (GPIO_Pin == GPIO_PIN_13)
   {
 	    HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
+	    motor1.STEPS = 200;
+	    motor1.SPEED = 10;
 
     // Change motor direction
-    HAL_GPIO_TogglePin(MOTOR1_DIR_PORT, MOTOR1_DIR_PIN);
+    HAL_GPIO_TogglePin(MOTOR1_DIR_PORT, MOTOR1_DIR_PIN); // Toggle direction pin
   }
-}
-
-
-void moveMotor(void){
-  //HAL_GPIO_WritePin(MOTOR1_DIR_PORT, MOTOR1_DIR_PIN, GPIO_PIN_RESET); // Set DIR high for one direction
-  HAL_GPIO_WritePin(MOTOR1_EN_PORT, MOTOR1_EN_PIN, GPIO_PIN_RESET); // Set EN high to enable the driver
-  // Set PWM duty cycle to start the motor movement
-  TIM1->CCR1 = 40;
-
-  HAL_Delay(MOVE_DURATION);
-
-  // Stop the motor
-  TIM1->CCR1 = 0;
-
-  // Wait for a moment
-  HAL_Delay(MOVE_DURATION);
-
-  //HAL_GPIO_WritePin(MOTOR1_DIR_PORT, MOTOR1_DIR_PIN, GPIO_PIN_RESET); // Change direction
-
-  HAL_GPIO_WritePin(MOTOR1_EN_PORT, MOTOR1_EN_PIN, GPIO_PIN_SET); // Set EN high to enable the driver
-
-  moveMotor();
-
 }
 
 /* USER CODE END 4 */

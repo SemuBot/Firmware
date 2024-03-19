@@ -1,0 +1,2 @@
+../Common/Src/motors.c:3:6:moveMotor	16	static
+../Common/Src/motors.c:32:5:clamp	24	static
