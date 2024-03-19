@@ -51,7 +51,7 @@
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
-uint8_t rx_data;
+uint8_t UART2_rxBuffer[12] = {0};
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin);
 /* USER CODE END PFP */
 
@@ -105,22 +105,20 @@ int main(void)
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET); // Blue button
   HAL_GPIO_EXTI_Callback(GPIO_PIN_13);
 
-  //HAL_TIM_Base_Start_IT(&htim1);
   HAL_TIM_Base_Start_IT(&htim3);
-  //HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_2); // Set DIR high for one direction
-  //HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_3); // Set EN high to enable the driver
-  //TIM1->CCR1 = 0;
-
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1); //Start timer
+  //HAL_UART_Receive_IT(&huart2, UART2_rxBuffer, 12);
+
+
   motor1.DIR_PIN = MOTOR1_DIR_PIN;
   motor1.STEP_PIN = MOTOR1_STEP_PIN;
   motor1.EN_PIN = MOTOR1_EN_PIN;
   motor1.SPEED = 100;
   motor1.STEPS = 200;
   motor1.TIMER = TIM1;
+
   moveMotor(&motor1);
 
-  //HAL_TIM_Base_Start_IT(&htim1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -131,6 +129,9 @@ int main(void)
 	  moveMotor(&motor1);
 
     /* USER CODE BEGIN 3 */
+	 // uint8_t Test[] = "Hello World !!!\r\n"; //Data to send
+	  //HAL_UART_Transmit(&huart2,Test,sizeof(Test),10);// Sending in normal mode
+	  //HAL_Delay(1000);
   }
   /* USER CODE END 3 */
 }
@@ -186,6 +187,13 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+    HAL_UART_Transmit(&huart2, UART2_rxBuffer, 12, 100);
+    HAL_UART_Receive_IT(&huart2, UART2_rxBuffer, 12);
+    HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
+}
 
 
 
