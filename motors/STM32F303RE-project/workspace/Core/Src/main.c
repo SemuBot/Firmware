@@ -51,7 +51,12 @@
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
-uint8_t UART2_rxBuffer[12] = {0};
+#define MAX_COMMAND_LENGTH 50
+
+#define MOTOR1_COMMAND "m1"
+#define MOTOR2_COMMAND "m2"
+
+uint8_t UART2_rxBuffer[MAX_COMMAND_LENGTH] = {0};
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin);
 /* USER CODE END PFP */
 
@@ -61,7 +66,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
 
   if (htim->Instance == TIM3) {
-	    HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_5);
+	    HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_5); // GPIOA is right
   }
 }
 
@@ -107,7 +112,7 @@ int main(void)
 
   HAL_TIM_Base_Start_IT(&htim3);
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1); //Start timer
-  //HAL_UART_Receive_IT(&huart2, UART2_rxBuffer, 12);
+  HAL_UART_Receive_IT(&huart2, UART2_rxBuffer, MAX_COMMAND_LENGTH);
 
 
   motor1.DIR_PIN = MOTOR1_DIR_PIN;
@@ -129,9 +134,7 @@ int main(void)
 	  moveMotor(&motor1);
 
     /* USER CODE BEGIN 3 */
-	 // uint8_t Test[] = "Hello World !!!\r\n"; //Data to send
-	  //HAL_UART_Transmit(&huart2,Test,sizeof(Test),10);// Sending in normal mode
-	  //HAL_Delay(1000);
+
   }
   /* USER CODE END 3 */
 }
@@ -190,9 +193,43 @@ void SystemClock_Config(void)
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
-    HAL_UART_Transmit(&huart2, UART2_rxBuffer, 12, 100);
-    HAL_UART_Receive_IT(&huart2, UART2_rxBuffer, 12);
     HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
+
+    if (huart == &huart2)
+    {
+        if (UART2_rxBuffer[0] != '\0')
+        {
+            char *token = strtok((char *)UART2_rxBuffer, "_"); // Split the received data by underscore
+
+            if (strcmp(token, MOTOR1_COMMAND) == 0)
+            {
+                token = strtok(NULL, "_"); // Get the next token (speed)
+                if (token != NULL)
+                {
+                    int speed = atoi(token); // Convert speed string to integer
+                    motor1.SPEED = speed;
+                }
+
+                token = strtok(NULL, "_"); // Get the next token (steps)
+                if (token != NULL)
+                {
+                    int steps = atoi(token); // Convert steps string to integer
+                    motor1.STEPS = steps;
+                }
+
+                // Send back the updated settings over UART
+                char uartTxBuffer[MAX_COMMAND_LENGTH] = {0};
+                sprintf(uartTxBuffer, "Motor1 Settings: Speed=%d, Steps=%d\r\n", motor1.SPEED, motor1.STEPS);
+                HAL_UART_Transmit(&huart2, (uint8_t *)uartTxBuffer, strlen(uartTxBuffer), HAL_MAX_DELAY);
+            }
+        }
+
+        // Clear the receive buffer
+        memset(UART2_rxBuffer, 0, sizeof(UART2_rxBuffer));
+
+        // Restart UART receive interrupt
+        HAL_UART_Receive_IT(&huart2, UART2_rxBuffer, MAX_COMMAND_LENGTH);
+    }
 }
 
 

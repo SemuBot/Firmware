@@ -7,7 +7,6 @@ void moveMotor(struct Motors* motor)
 if (motor->STEPS > 0){
 	  //HAL_GPIO_WritePin(GPIOC, motor->dirPin, GPIO_PIN_RESET); // Set DIR high for one direction
 	  HAL_GPIO_WritePin(GPIOC, motor->EN_PIN, GPIO_PIN_RESET); // Set EN high to enable the driver
-	    HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
 	  motor->TIMER-> CCR1 = clamp(motor->SPEED,1,200);
 
 	  // Wait for the specified duration
