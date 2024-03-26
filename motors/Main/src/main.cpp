@@ -79,10 +79,6 @@ void loop() {
   if (!debug) {
     encoderCheck(encoderList);
   }
-  //} else {
-
-//    getEncoderPosition(encoderList);
- // }
 
   moveMotor(elbowMotor);
   moveMotor(shoulderMotor);
@@ -100,14 +96,14 @@ void loop() {
 
       Serial.println("Motor: " + motorName + ", Action: " + action + ", Steps: " + String(stepsToMove));
       
-      if (action == "up") {
+      if (action == "CCW") {
         Motor* motor = getMotorByName(motorName);
         if (motor != nullptr) {
           Serial.println("Moving");
           set_Steps(*motor, stepsToMove);
           startMotor(*motor);
         }
-      } else if (action == "down") {
+      } else if (action == "CW") {
         Motor* motor = getMotorByName(motorName);
         if (motor != nullptr) {
           set_Steps(*motor, -stepsToMove);

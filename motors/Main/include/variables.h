@@ -3,22 +3,22 @@
 
 
 /* Stepper driver pins*/
-// Motor 1
+// Motor 1 
 
-#define MOTOR1_STEP_PIN 2
-#define MOTOR1_DIR 3
+#define MOTOR1_DIR 2
+#define MOTOR1_STEP_PIN 3
 #define MOTOR1_EN_PIN 4
 
 // Motor 2
 
 #define MOTOR2_DIR 5
 #define MOTOR2_STEP_PIN 6
-#define MOTOR2_EN_PIN 8
+#define MOTOR2_EN_PIN 7
 
 
 // Motor 3
 
-#define MOTOR3_DIR 81
+#define MOTOR3_DIR 8
 #define MOTOR3_STEP_PIN 9
 #define MOTOR3_EN_PIN 10
 
