@@ -1,12 +1,20 @@
 #include "motors.h"
 
-void moveMotor(struct Motors* motor)
-{
+void moveMotor(struct Motors* motor){
 
-
-if (motor->STEPS > 0){
+	if (motor->STEPS > 0){
+		if(!motor->moving){
+			HAL_GPIO_WritePin(motor->EN_PORT, motor->EN_PIN, GPIO_PIN_RESET); // Set EN high to enable the driver
+			motor->moving = true;
+		}
 	  //HAL_GPIO_WritePin(GPIOC, motor->dirPin, GPIO_PIN_RESET); // Set DIR high for one direction
-	  HAL_GPIO_WritePin(GPIOC, motor->EN_PIN, GPIO_PIN_RESET); // Set EN high to enable the driver
+		/*
+        if(motor->STEPS > 0){
+            HAL_GPIO_WritePin(motor->DIR_PORT, motor->DIR_PIN, GPIO_PIN_SET); // Set DIR high for one direction
+        } else {
+            HAL_GPIO_WritePin(motor->DIR_PORT, motor->DIR_PIN, GPIO_PIN_RESET); // Set DIR low for another direction
+        }
+*/
 	  motor->TIMER-> CCR1 = clamp(motor->SPEED,1,200);
 
 	  // Wait for the specified duration
@@ -19,13 +27,12 @@ if (motor->STEPS > 0){
 	  HAL_Delay(MOVE_DURATION);
 
 
-	  // Disable the motor
-	  HAL_GPIO_WritePin(GPIOC, motor->EN_PIN, GPIO_PIN_SET);
-	  motor->STEPS--;
-	  if(motor->STEPS == 0){
-		  HAL_GPIO_WritePin(GPIOC, motor->EN_PIN, GPIO_PIN_SET);
-	  }
-}
+      motor->STEPS -= (motor->STEPS > 0) ? 1 : -1;
+
+      if(motor->STEPS == 0){
+          HAL_GPIO_WritePin(motor->EN_PORT, motor->EN_PIN, GPIO_PIN_SET);
+      }
+	}
 }
 
 // Function to clamp values for the duty cycle/ speed

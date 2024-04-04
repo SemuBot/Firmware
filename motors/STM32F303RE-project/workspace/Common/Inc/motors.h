@@ -8,6 +8,7 @@
 #define MOTORS_H
 
 #include "main.h"
+#include "stdbool.h"
 #define MOVE_DURATION 10 // 5 seconds in milliseconds
 
 struct Motors {
@@ -18,6 +19,9 @@ struct Motors {
   int STEPS;
   TIM_TypeDef  *TIMER;
   int CCR_VALUE;
+  GPIO_TypeDef *EN_PORT;
+  GPIO_TypeDef *DIR_PORT;
+  bool moving;
 };
 
 void moveMotor(struct Motors* motor);

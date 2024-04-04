@@ -15,7 +15,6 @@ void setupMotors(Motor* motors){
 
 void moveMotor(Motor &motor){
   if (motor.moving && motor.steps != 0){
-    //Serial.println("Moving");
     digitalWrite(motor.dirPin, (motor.steps > 0) ? HIGH : LOW);
     digitalWrite(motor.enPin, HIGH);
     digitalWrite(motor.stepPin, HIGH);

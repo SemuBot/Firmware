@@ -55,7 +55,7 @@
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
-#define MAX_COMMAND_LENGTH 50
+#define MAX_COMMAND_LENGTH 500
 
 #define MOTOR1_COMMAND "m1"
 #define MOTOR2_COMMAND "m2"
@@ -84,7 +84,7 @@ struct Motors motor2;
 struct Motors motor3;
 struct Motors motor4;
 struct Motors motor5;
-
+int counter = 0;
 /* USER CODE END 0 */
 
 /**
@@ -140,6 +140,10 @@ int main(void)
   motor1.SPEED = 100;
   motor1.STEPS = 200;
   motor1.TIMER = TIM1;
+  motor1.EN_PORT = MOTOR1_EN_GPIO_Port;
+  motor1.DIR_PORT = MOTOR1_DIR_GPIO_Port;
+  motor1.moving = false;
+
 
   // Motor 2 initialization
   motor2.DIR_PIN = MOTOR2_DIR_Pin;
@@ -148,6 +152,11 @@ int main(void)
   motor2.SPEED = 100;
   motor2.STEPS = 200;
   motor2.TIMER = TIM2;
+  motor2.EN_PORT = MOTOR2_EN_GPIO_Port;
+  motor2.DIR_PORT = MOTOR2_DIR_GPIO_Port;
+  motor2.moving = false;
+
+
 
   // Motor 3 initialization
   motor3.DIR_PIN = MOTOR3_DIR_Pin;
@@ -156,6 +165,11 @@ int main(void)
   motor3.SPEED = 100;
   motor3.STEPS = 200;
   motor3.TIMER = TIM3;
+  motor3.EN_PORT = MOTOR3_EN_GPIO_Port;
+  motor3.DIR_PORT = MOTOR3_DIR_GPIO_Port;
+
+  motor3.moving = false;
+
 
   // Motor 4 initialization
   motor4.DIR_PIN = MOTOR4_DIR_Pin;
@@ -164,6 +178,12 @@ int main(void)
   motor4.SPEED = 100;
   motor4.STEPS = 200;
   motor4.TIMER = TIM4;
+  motor4.EN_PORT = MOTOR4_EN_GPIO_Port;
+  motor4.DIR_PORT = MOTOR4_DIR_GPIO_Port;
+  motor4.moving = false;
+
+
+
 
   // Motor 5 initialization
   motor5.DIR_PIN = MOTOR5_DIR_Pin;
@@ -172,7 +192,9 @@ int main(void)
   motor5.SPEED = 100;
   motor5.STEPS = 200;
   motor5.TIMER = TIM8;
-
+  motor5.EN_PORT = MOTOR5_EN_GPIO_Port;
+  motor5.DIR_PORT = MOTOR5_DIR_GPIO_Port;
+  motor5.moving = false;
 
   /* USER CODE END 2 */
 
@@ -183,6 +205,11 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+	  moveMotor(&motor1);
+	  moveMotor(&motor2);
+	  moveMotor(&motor3);
+	  moveMotor(&motor4);
+	  moveMotor(&motor5);
 
   }
   /* USER CODE END 3 */
@@ -385,10 +412,15 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
   {
 	    HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
 	    motor1.STEPS = 200;
-	    motor1.SPEED = 10;
+	    motor1.SPEED = 50;
+	    motor2.STEPS = 200;
+	    motor2.SPEED = 50;
+	    counter++;
+	    if (counter > 2){
+	    	HAL_GPIO_TogglePin(motor1.DIR_PORT, motor1.DIR_PIN); // Toggle the direction pin
+	    	HAL_GPIO_TogglePin(motor2.DIR_PORT, motor2.DIR_PIN); // Toggle the direction pin
 
-    // Change motor direction
-    HAL_GPIO_TogglePin(MOTOR1_DIR_GPIO_Port, MOTOR1_DIR_Pin); // Toggle direction pin
+	    }
   }
 }
 
