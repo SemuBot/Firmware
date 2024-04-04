@@ -5,7 +5,8 @@ from enum import IntEnum
 import keyboard
 
 
-nucleo_serial = ["066EFF554852707267073305", "AAAAAAAAA"]
+#nucleo_serial = ["066EFF554852707267073305", "AAAAAAAAA"] # Priit's nucleo
+nucleo_serial = ["0672FF484971754867122211", "AAAAAAAAA"] # The Nucleo-F303RE
 
 class CMD(IntEnum):
   MOVE_MOTOR = 1
@@ -49,6 +50,7 @@ if __name__ == "__main__":
   com_ports = serial.tools.list_ports.comports()
   ser = None
   for portinfo in com_ports:
+    #print(portinfo.serial_number)
     if portinfo.serial_number in nucleo_serial:
       with serial.Serial(port=portinfo.device ,baudrate=9600, timeout=timeout) as ser:
         while True:
