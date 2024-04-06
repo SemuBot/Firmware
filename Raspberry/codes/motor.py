@@ -51,6 +51,7 @@ if __name__ == "__main__":
   '''com_ports = serial.tools.list_ports.comports()
   ser = None
   for portinfo in com_ports:
+    #print(portinfo.serial_number)
     if portinfo.serial_number in nucleo_serial:
       with serial.Serial(port=portinfo.device ,baudrate=9600, timeout=timeout) as ser:
         while True:
