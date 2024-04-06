@@ -55,7 +55,7 @@
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
-#define MAX_COMMAND_LENGTH 20
+#define MAX_COMMAND_LENGTH 7
 
 #define MOTOR1_COMMAND "m1"
 #define MOTOR2_COMMAND "m2"
@@ -69,22 +69,104 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+
+
+
+
+Motors motor1;
+Motors motor2;
+Motors motor3;
+Motors motor4;
+volatile Motors motor5;
+int counter = 0;
+
+void move_motor(Motors* m){
+	if (m->STEPS == 0) return;
+
+	m->SPEED_CNT++;
+
+	if (m->SPEED_CNT == 0){
+		HAL_GPIO_TogglePin(PWM_PIN_MAKRO_PORT, PWM_PIN);
+	}
+
+	if (m->SPEED_CNT == (m->SPEED >> 1)){
+		HAL_GPIO_TogglePin(PWM_PIN_MAKRO_PORT, PWM_PIN);
+	}
+	if (m->SPEED_CNT == m->SPEED){
+
+		m->STEPS--;
+		m->SPEED_CNT = 0;
+
+	}
+
+
+	// Kas peab liikuma steps != 0
+
+	// Ajutine muutuja, mis määrab kiirust. kiirus > speed, siis toggle
+	// Kui on 2 korda toggle toimunud, siis steps--
+
+
+	}
+
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
 
   if (htim->Instance == TIM3) {
 	    HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_5); // GPIOA is right
   }
+  moveMotor(&motor1);
+  moveMotor(&motor2);
+  moveMotor(&motor3);
+  moveMotor(&motor4);
+
+  // Move motor logic
+  // If steps not zero, toggle pin
+  // decrement steps value
+  // if reaches zero, dont move
+  // Speed determines when to toggle step pin
+
+
 }
 
 
 
-struct Motors motor1;
-struct Motors motor2;
-struct Motors motor3;
-struct Motors motor4;
-struct Motors motor5;
-int counter = 0;
+#define DEFAULT_STEPS_NR 500
+
+void add_motor_val(Motors* m, int8_t val){
+	if (val < 0){
+		m->DIR_PIN = 0;
+		m->SPEED = -val;
+	} else {
+		m->DIR_PIN = 1;
+		m->SPEED = val;
+
+	}
+	m->SPEED_CNT = 0;
+	m->STEPS = 200;
+}
+
+void receive(){
+	uint16_t packet_start = UART2_rxBuffer[0] << 8 || UART2_rxBuffer[1];
+	if (packet_start != 0x4994) return;
+
+	// Do cmd byte check
+
+	int8_t m1_val = UART2_rxBuffer[3];
+	int8_t m2_val = UART2_rxBuffer[4];
+	int8_t m3_val = UART2_rxBuffer[5];
+	int8_t m4_val = UART2_rxBuffer[6];
+
+	if (m1_val != 0) add_motor_val(&motor1, m1_val);
+	if (m2_val != 0) add_motor_val(&motor2, m2_val);
+	if (m3_val != 0) add_motor_val(&motor3, m3_val);
+	if (m4_val != 0) add_motor_val(&motor4, m4_val);
+
+	HAL_UART_Receive_IT(&huart2, UART2_rxBuffer, MAX_COMMAND_LENGTH);
+
+
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -274,8 +356,8 @@ void SystemClock_Config(void)
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
     HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
-
-    if (huart == &huart2) {
+    receive();
+    /*if (huart == &huart2) {
         if (UART2_rxBuffer[0] != '\0') {
             char *token = strtok((char *)UART2_rxBuffer, "_");
 
@@ -420,7 +502,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 
         // Restart UART receive interrupt
         HAL_UART_Receive_IT(&huart2, UART2_rxBuffer, MAX_COMMAND_LENGTH);
-    }
+    }*/
 }
 
 
