@@ -2,19 +2,19 @@ from pydualsense import *
 import serial
 import time
 
-COM = "COM8"
+COM = "COM4"
 BAUD_RATE = 115200
 speed = 50
 steps_to_send = 0
-arduino = serial.Serial(port=COM,baudrate=BAUD_RATE)
+#arduino = serial.Serial(port=COM,baudrate=BAUD_RATE)
 
-
+"""
 def write_read(x):
     arduino.write(bytes(x,   'utf-8'))
     time.sleep(0.5)
     #data = arduino.readline()
     #return   data
-
+"""
 def linear_map(x, in_min, in_max, out_min, out_max):
     return int((x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min)
 
@@ -42,22 +42,27 @@ def main():
 
             # Check R2 button press
             y_state = dualsense.state.LY
+            print("LY STATE: ",y_state)
+            print("LX STATE: ",dualsense.state.LX)
+            print("RX STATE: ",dualsense.state.RX)
+            print("RY STATE: ",dualsense.state.RY)
             #print(y_state)
             #print(arduino.readline())
             if y_state > 10:
                 #steps_to_send = linear_map(y_state, 40, 255, 10, 100)
-                down(2000)
+                #down(2000)
                 print("Sent down")
             if y_state < 0:
                 #steps_to_send = linear_map(dualsense.state.L2, 40, 255, 10, 100)
-                up(2000)
+                #up(2000)
                 print("Sent up")
-            if dualsense.state.square:
+            """if dualsense.state.square:
                 up(5000)
             if dualsense.state.circle:
                 down(5000)
             if dualsense.state.triangle:
-                sendStop()
+                sendStop()"""
+            time.sleep(0.1)
 
 
     except KeyboardInterrupt:
