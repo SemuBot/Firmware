@@ -8,7 +8,12 @@ import time
 
 def main(ser: serial.Serial):
   if dualsense.state.R1:
-      raise KeyboardInterrupt  # Raise KeyboardInterrupt to exit the loop
+    vals.m1 = 0
+    vals.m2 = 0
+    vals.m3 = 0
+    vals.m4 = 0
+    vals.m5 = 0
+    raise KeyboardInterrupt  # Raise KeyboardInterrupt to exit the loop
   vals = comm.MotorValues()
 
   #print("Press any key to continue...")

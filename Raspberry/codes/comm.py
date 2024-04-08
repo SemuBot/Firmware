@@ -3,7 +3,8 @@ import serial.tools.list_ports
 import struct 
 from enum import IntEnum
 
-nucleo_serial = "066CFF505057717867095232"
+#nucleo_serial = "066CFF505057717867095232"
+nucleo_serial = "0672FF484971754867122211"
 
 # Not necessary currently
 class CMD(IntEnum):

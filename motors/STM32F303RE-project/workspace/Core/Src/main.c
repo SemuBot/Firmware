@@ -87,11 +87,11 @@ void move_motor(Motors* m){
 	m->SPEED_CNT++;
 
 	if (m->SPEED_CNT == 0){
-		HAL_GPIO_TogglePin(PWM_PIN_MAKRO_PORT, PWM_PIN);
+		HAL_GPIO_TogglePin(m->PWM_PORT, m->PWM_PIN);
 	}
 
 	if (m->SPEED_CNT == (m->SPEED >> 1)){
-		HAL_GPIO_TogglePin(PWM_PIN_MAKRO_PORT, PWM_PIN);
+		HAL_GPIO_TogglePin(m->PWM_PORT, m->PWM_PIN);
 	}
 	if (m->SPEED_CNT == m->SPEED){
 
@@ -112,13 +112,11 @@ void move_motor(Motors* m){
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
 
-  if (htim->Instance == TIM3) {
-	    HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_5); // GPIOA is right
-  }
-  moveMotor(&motor1);
-  moveMotor(&motor2);
-  moveMotor(&motor3);
-  moveMotor(&motor4);
+  move_motor(&motor1);
+  move_motor(&motor2);
+  move_motor(&motor3);
+  move_motor(&motor4);
+  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
 
   // Move motor logic
   // If steps not zero, toggle pin
@@ -136,9 +134,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 void add_motor_val(Motors* m, int8_t val){
 	if (val < 0){
 		m->DIR_PIN = 0;
+		HAL_GPIO_WritePin(m->DIR_PORT, m->DIR_PIN, GPIO_PIN_RESET); // Set EN high to enable the driver
 		m->SPEED = -val;
 	} else {
 		m->DIR_PIN = 1;
+		HAL_GPIO_WritePin(m->DIR_PORT, m->DIR_PIN, GPIO_PIN_SET); // Set EN high to enable the driver
 		m->SPEED = val;
 
 	}
@@ -222,24 +222,27 @@ int main(void)
   motor1.STEP_PIN = MOTOR1_PUL_Pin;
   motor1.EN_PIN = MOTOR1_EN_Pin;
   motor1.SPEED = 100;
+  motor1.SPEED_CNT = 0;
   motor1.STEPS = 200;
   motor1.TIMER = TIM1;
   motor1.EN_PORT = MOTOR1_EN_GPIO_Port;
   motor1.DIR_PORT = MOTOR1_DIR_GPIO_Port;
-  motor1.moving = false;
-
+  motor1.PWM_PORT = MOTOR1_PUL_GPIO_Port;
+  motor1.is_high = false;
 
   // Motor 2 initialization
   motor2.DIR_PIN = MOTOR2_DIR_Pin;
   motor2.STEP_PIN = MOTOR2_PUL_Pin;
   motor2.EN_PIN = MOTOR2_EN_Pin;
   motor2.SPEED = 100;
+  motor2.SPEED_CNT = 0;
+
   motor2.STEPS = 200;
   motor2.TIMER = TIM2;
   motor2.EN_PORT = MOTOR2_EN_GPIO_Port;
   motor2.DIR_PORT = MOTOR2_DIR_GPIO_Port;
-  motor2.moving = false;
-
+  motor2.PWM_PORT = MOTOR2_PUL_GPIO_Port;
+  motor2.is_high = false;
 
 
   // Motor 3 initialization
@@ -247,12 +250,13 @@ int main(void)
   motor3.STEP_PIN = MOTOR3_PUL_Pin;
   motor3.EN_PIN = MOTOR3_EN_Pin;
   motor3.SPEED = 100;
+  motor3.SPEED_CNT = 0;
   motor3.STEPS = 200;
   motor3.TIMER = TIM3;
   motor3.EN_PORT = MOTOR3_EN_GPIO_Port;
   motor3.DIR_PORT = MOTOR3_DIR_GPIO_Port;
-
-  motor3.moving = false;
+  motor3.PWM_PORT = MOTOR3_PUL_GPIO_Port;
+  motor3.is_high = false;
 
 
   // Motor 4 initialization
@@ -260,25 +264,30 @@ int main(void)
   motor4.STEP_PIN = MOTOR4_PUL_Pin;
   motor4.EN_PIN = MOTOR4_EN_Pin;
   motor4.SPEED = 100;
+  motor4.SPEED_CNT = 0;
+
   motor4.STEPS = 200;
   motor4.TIMER = TIM4;
   motor4.EN_PORT = MOTOR4_EN_GPIO_Port;
   motor4.DIR_PORT = MOTOR4_DIR_GPIO_Port;
-  motor4.moving = false;
 
-
+  motor4.PWM_PORT = MOTOR4_PUL_GPIO_Port;
+  motor4.is_high = false;
 
 
   // Motor 5 initialization
   motor5.DIR_PIN = MOTOR5_DIR_Pin;
   motor5.STEP_PIN = MOTOR5_PUL_Pin;
   motor5.EN_PIN = MOTOR5_EN_Pin;
+  motor5.PWM_PIN = MOTOR5_PUL_Pin;
   motor5.SPEED = 100;
+  motor5.SPEED_CNT = 0;
   motor5.STEPS = 200;
   motor5.TIMER = TIM8;
   motor5.EN_PORT = MOTOR5_EN_GPIO_Port;
   motor5.DIR_PORT = MOTOR5_DIR_GPIO_Port;
-  motor5.moving = false;
+  motor5.PWM_PORT = MOTOR5_PUL_GPIO_Port;
+  motor5.is_high = false;
 
   /* USER CODE END 2 */
 
@@ -289,11 +298,7 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	  moveMotor(&motor1);
-	  moveMotor(&motor2);
-	  moveMotor(&motor3);
-	  moveMotor(&motor4);
-	  moveMotor(&motor5);
+
 
   }
   /* USER CODE END 3 */
@@ -357,152 +362,7 @@ void SystemClock_Config(void)
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
     HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
     receive();
-    /*if (huart == &huart2) {
-        if (UART2_rxBuffer[0] != '\0') {
-            char *token = strtok((char *)UART2_rxBuffer, "_");
 
-            // Check the command for motor 1
-            if (strcmp(token, MOTOR1_COMMAND) == 0) {
-                token = strtok(NULL, "_"); // Get the next token (direction)
-                int direction = (token != NULL && strcmp(token, "cw") == 0) ? 1 : 0; // 1 for clockwise, 0 for counterclockwise
-
-                token = strtok(NULL, "_"); // Get the next token (speed)
-                if (token != NULL) {
-                    int speed = atoi(token); // Convert speed string to integer
-                    motor1.SPEED = speed;
-                }
-
-                token = strtok(NULL, "_"); // Get the next token (steps)
-                if (token != NULL) {
-                    int steps = atoi(token); // Convert steps string to integer
-                    motor1.STEPS = steps;
-                }
-
-                // Set direction pin based on direction
-                HAL_GPIO_WritePin(motor1.DIR_PORT, motor1.DIR_PIN, direction);
-
-                // Send back the updated settings over UART
-                char uartTxBuffer[MAX_COMMAND_LENGTH] = {0};
-                sprintf(uartTxBuffer, "Motor1 Settings: Direction=%s, Speed=%d, Steps=%d\r\n",
-                        (direction == 1) ? "CW" : "CCW", motor1.SPEED, motor1.STEPS);
-                HAL_UART_Transmit(&huart2, (uint8_t *)uartTxBuffer, strlen(uartTxBuffer), HAL_MAX_DELAY);
-            }
-
-            // Check the command for motor 2
-            else if (strcmp(token, MOTOR2_COMMAND) == 0) {
-                token = strtok(NULL, "_"); // Get the next token (direction)
-                int direction = (token != NULL && strcmp(token, "cw") == 0) ? 1 : 0; // 1 for clockwise, 0 for counterclockwise
-
-                token = strtok(NULL, "_"); // Get the next token (speed)
-                if (token != NULL) {
-                    int speed = atoi(token); // Convert speed string to integer
-                    motor2.SPEED = speed;
-                }
-
-                token = strtok(NULL, "_"); // Get the next token (steps)
-                if (token != NULL) {
-                    int steps = atoi(token); // Convert steps string to integer
-                    motor2.STEPS = steps;
-                }
-
-                // Set direction pin based on direction
-                HAL_GPIO_WritePin(motor2.DIR_PORT, motor2.DIR_PIN, direction);
-
-                // Send back the updated settings over UART
-                char uartTxBuffer[MAX_COMMAND_LENGTH] = {0};
-                sprintf(uartTxBuffer, "Motor2 Settings: Direction=%s, Speed=%d, Steps=%d\r\n",
-                        (direction == 1) ? "CW" : "CCW", motor2.SPEED, motor2.STEPS);
-                HAL_UART_Transmit(&huart2, (uint8_t *)uartTxBuffer, strlen(uartTxBuffer), HAL_MAX_DELAY);
-            }
-
-            // Check the command for motor 3
-            else if (strcmp(token, MOTOR3_COMMAND) == 0) {
-                token = strtok(NULL, "_"); // Get the next token (direction)
-                int direction = (token != NULL && strcmp(token, "cw") == 0) ? 1 : 0; // 1 for clockwise, 0 for counterclockwise
-
-                token = strtok(NULL, "_"); // Get the next token (speed)
-                if (token != NULL) {
-                    int speed = atoi(token); // Convert speed string to integer
-                    motor3.SPEED = speed;
-                }
-
-                token = strtok(NULL, "_"); // Get the next token (steps)
-                if (token != NULL) {
-                    int steps = atoi(token); // Convert steps string to integer
-                    motor3.STEPS = steps;
-                }
-
-                // Set direction pin based on direction
-                HAL_GPIO_WritePin(motor3.DIR_PORT, motor3.DIR_PIN, direction);
-
-                // Send back the updated settings over UART
-                char uartTxBuffer[MAX_COMMAND_LENGTH] = {0};
-                sprintf(uartTxBuffer, "Motor3 Settings: Direction=%s, Speed=%d, Steps=%d\r\n",
-                        (direction == 1) ? "CW" : "CCW", motor3.SPEED, motor3.STEPS);
-                HAL_UART_Transmit(&huart2, (uint8_t *)uartTxBuffer, strlen(uartTxBuffer), HAL_MAX_DELAY);
-            }
-
-            // Check the command for motor 4
-            else if (strcmp(token, MOTOR4_COMMAND) == 0) {
-                token = strtok(NULL, "_"); // Get the next token (direction)
-                int direction = (token != NULL && strcmp(token, "cw") == 0) ? 1 : 0; // 1 for clockwise, 0 for counterclockwise
-
-                token = strtok(NULL, "_"); // Get the next token (speed)
-                if (token != NULL) {
-                    int speed = atoi(token); // Convert speed string to integer
-                    motor4.SPEED = speed;
-                }
-
-                token = strtok(NULL, "_"); // Get the next token (steps)
-                if (token != NULL) {
-                    int steps = atoi(token); // Convert steps string to integer
-                    motor4.STEPS = steps;
-                }
-
-                // Set direction pin based on direction
-                HAL_GPIO_WritePin(motor4.DIR_PORT, motor4.DIR_PIN, direction);
-
-                // Send back the updated settings over UART
-                char uartTxBuffer[MAX_COMMAND_LENGTH] = {0};
-                sprintf(uartTxBuffer, "Motor4 Settings: Direction=%s, Speed=%d, Steps=%d\r\n",
-                        (direction == 1) ? "CW" : "CCW", motor4.SPEED, motor4.STEPS);
-                HAL_UART_Transmit(&huart2, (uint8_t *)uartTxBuffer, strlen(uartTxBuffer), HAL_MAX_DELAY);
-            }
-
-            // Check the command for motor 5
-            else if (strcmp(token, MOTOR5_COMMAND) == 0) {
-                token = strtok(NULL, "_"); // Get the next token (direction)
-                int direction = (token != NULL && strcmp(token, "cw") == 0) ? 1 : 0; // 1 for clockwise, 0 for counterclockwise
-
-                token = strtok(NULL, "_"); // Get the next token (speed)
-                if (token != NULL) {
-                    int speed = atoi(token); // Convert speed string to integer
-                    motor5.SPEED = speed;
-                }
-
-                token = strtok(NULL, "_"); // Get the next token (steps)
-                if (token != NULL) {
-                    int steps = atoi(token); // Convert steps string to integer
-                    motor5.STEPS = steps;
-                }
-
-                // Set direction pin based on direction
-                HAL_GPIO_WritePin(motor5.DIR_PORT, motor5.DIR_PIN, direction);
-
-                // Send back the updated settings over UART
-                char uartTxBuffer[MAX_COMMAND_LENGTH] = {0};
-                sprintf(uartTxBuffer, "Motor5 Settings: Direction=%s, Speed=%d, Steps=%d\r\n",
-                        (direction == 1) ? "CW" : "CCW", motor5.SPEED, motor5.STEPS);
-                HAL_UART_Transmit(&huart2, (uint8_t *)uartTxBuffer, strlen(uartTxBuffer), HAL_MAX_DELAY);
-            }
-        }
-
-        // Clear the receive buffer
-        memset(UART2_rxBuffer, 0, sizeof(UART2_rxBuffer));
-
-        // Restart UART receive interrupt
-        HAL_UART_Receive_IT(&huart2, UART2_rxBuffer, MAX_COMMAND_LENGTH);
-    }*/
 }
 
 
@@ -514,7 +374,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
   // Check if the button (PC13) is pressed
   if (GPIO_Pin == GPIO_PIN_13)
   {
-	    HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
+	    //HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
 	    motor1.STEPS = 200;
 	    motor1.SPEED = 50;
 	    motor2.STEPS = 200;

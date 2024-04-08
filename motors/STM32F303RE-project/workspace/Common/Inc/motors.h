@@ -19,13 +19,11 @@ typedef struct{ // Check number sizes
   int8_t SPEED_CNT;
   int16_t STEPS;
   TIM_TypeDef  *TIMER;
-  int CCR_VALUE;
   GPIO_TypeDef *EN_PORT;
   GPIO_TypeDef *DIR_PORT;
-  bool moving;
+  GPIO_TypeDef *PWM_PORT;
+  int8_t PWM_PIN;
   bool is_high;
 } Motors;
 
-void moveMotor(struct Motors* motor);
-int clamp(int value, int min, int max);
 #endif /* MOTORS_H */
