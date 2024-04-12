@@ -182,6 +182,58 @@ int main(void)
   HAL_UART_Receive_IT(&huart2, UART2_rxBuffer, MAX_COMMAND_LENGTH);
   //HAL_UART_Receive_IT(&huart1, UART2_rxBuffer, MAX_COMMAND_LENGTH);
 
+
+	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(motor1.DIR_PORT, motor1.DIR_PIN, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(motor2.DIR_PORT, motor2.DIR_PIN, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(motor3.DIR_PORT, motor3.DIR_PIN, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(motor4.DIR_PORT, motor4.DIR_PIN, GPIO_PIN_SET);
+
+	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
+	motor1.STEPS = 2500;
+	motor1.SPEED = 5;
+
+	motor2.STEPS = 1500;
+	motor2.SPEED = 5;
+
+	motor3.STEPS = 1500;
+	motor3.SPEED = 5;
+
+	motor4.STEPS = 1500;
+	motor4.SPEED = 60;
+
+
+	moveMotor(&motor1);
+	//moveMotor(&motor2);
+	moveMotor(&motor3);
+	moveMotor(&motor4);
+
+
+	HAL_Delay(1000);
+	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
+
+	HAL_GPIO_WritePin(motor1.DIR_PORT, motor1.DIR_PIN, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(motor2.DIR_PORT, motor2.DIR_PIN, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(motor3.DIR_PORT, motor3.DIR_PIN, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(motor4.DIR_PORT, motor4.DIR_PIN, GPIO_PIN_RESET);
+
+	motor1.STEPS = 2500;
+	motor1.SPEED = 10;
+
+	motor2.STEPS = 1500;
+	motor2.SPEED = 10;
+
+	motor3.STEPS = 1500;
+	motor3.SPEED = 10;
+
+	motor4.STEPS = 1500;
+	motor4.SPEED = 10;
+
+
+	moveMotor(&motor4);
+	moveMotor(&motor3);
+	//moveMotor(&motor2);
+	moveMotor(&motor1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -191,11 +243,7 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	  moveMotor(&motor1);
-	  moveMotor(&motor2);
-	  moveMotor(&motor3);
-	  moveMotor(&motor4);
-	  moveMotor(&motor5);
+
 
   }
   /* USER CODE END 3 */
@@ -416,17 +464,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
   // Check if the button (PC13) is pressed
   if (GPIO_Pin == GPIO_PIN_13)
   {
-	    HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
-	    motor1.STEPS = 200;
-	    motor1.SPEED = 50;
-	    motor2.STEPS = 200;
-	    motor2.SPEED = 50;
-	    counter++;
-	    if (counter > 2){
-	    	HAL_GPIO_TogglePin(motor1.DIR_PORT, motor1.DIR_PIN); // Toggle the direction pin
-	    	HAL_GPIO_TogglePin(motor2.DIR_PORT, motor2.DIR_PIN); // Toggle the direction pin
 
-	    }
   }
 }
 
