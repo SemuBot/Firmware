@@ -29,21 +29,42 @@ extern "C" {
 #include "main.h"
 
 /* USER CODE BEGIN Includes */
+#include "stdbool.h"
 
 /* USER CODE END Includes */
-
-extern UART_HandleTypeDef huart1;
 
 extern UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN Private defines */
 
+#define USART_BUFFER_SIZE 11
+
 /* USER CODE END Private defines */
 
-void MX_USART1_UART_Init(void);
 void MX_USART2_UART_Init(void);
 
 /* USER CODE BEGIN Prototypes */
+
+typedef struct {
+	uint8_t delimiter_l;
+	uint8_t delimiter_h;
+	uint8_t cmd;
+	int8_t m1_speed;
+	uint8_t m1_steps;
+	int8_t m2_speed;
+	uint8_t m2_steps;
+	int8_t m3_speed;
+	uint8_t m3_steps;
+	int8_t m4_speed;
+	uint8_t m4_steps;
+	//uint16_t crc;
+}usart_buffer_st;
+
+bool USART_drdy();
+void USART_init();
+bool USART_drdy();
+usart_buffer_st* USART_get_buffer();
+
 
 /* USER CODE END Prototypes */
 

@@ -12,16 +12,23 @@ class CMD(IntEnum):
   READ_ENC = 2  
 
 class MotorValues():
-  m1 = 0
-  m2 = 0
-  m3 = 0
-  m4 = 0
+  def __init__(self):
+    self.m1_speed = 1
+    self.m1_steps = 2
+    self.m2_speed = 3
+    self.m2_steps = 4
+    self.m3_speed = 5
+    self.m3_steps = 6
+    self.m4_speed = 7
+    self.m4_steps = 8
 
 packet_header_fmt = "<H"
 packet_cmd_fmt = "B"
+packet_crc_fmt = "H"
+
 packet_header = 0x4994
 formats = {
-  CMD.MOVE_MOTOR: "bbbb",
+  CMD.MOVE_MOTOR: "bBbBbBbB",
   CMD.READ_ENC: "HHHH"
 }
 
@@ -42,15 +49,24 @@ def ser_packet_size(cmd):
 
 def ser_make_motor_packet(values: MotorValues):
   cmd = CMD.MOVE_MOTOR
-  return struct.pack(ser_make_cmd_format(cmd), packet_header, cmd, values.m1, values.m2, values.m3, values.m4)
+  return struct.pack(ser_make_cmd_format(cmd), packet_header, cmd, values.m1_speed, values.m1_steps, values.m2_speed, 
+                     values.m2_steps, values.m3_speed, values.m3_steps, values.m4_speed, values.m4_steps)
 
 
 def ser_write(ser: serial.Serial, packet: bytes):
+  print(list(packet))
   ser.write(packet)
   ser.flush()
 
 def ser_read(ser: serial.Serial, cmd: CMD):
   read_bytes = ser.read(ser_packet_size(cmd))
+
+
+
+if __name__ == "__main__":
+  com_ports = serial.tools.list_ports.comports() 
+  for port in com_ports:
+    print(port.device, " ", port.serial_number)
 
 '''
 def make_packet(cmd: CMD):

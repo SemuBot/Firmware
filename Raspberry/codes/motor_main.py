@@ -3,48 +3,34 @@ import serial.tools.list_ports
 import struct 
 from enum import IntEnum
 import keyboard
-import comm
+import ser_nucleo
 import time
 
 
 def main(ser: serial.Serial):
   #print("Press any key to continue...")
-  vals = comm.MotorValues()
+  vals = ser_nucleo.MotorValues()
   if keyboard.is_pressed(hotkey="W"):
     print("W pressed")
-    vals.m1 = 100
+    vals.m1_speed = 10
+    vals.m1_steps = 2
+    ser_nucleo.ser_write(ser, packet=ser_nucleo.ser_make_motor_packet(vals))
+    time.sleep(0.1)
   if keyboard.is_pressed(hotkey="A"):
     print("A pressed")
-    vals.m1 = -100
-  if keyboard.is_pressed(hotkey="E"):
-    print("E pressed")
-    vals.m2 = 100
-  if keyboard.is_pressed(hotkey="S"):
-    print("S pressed")
-    vals.m2 = -100
-  if keyboard.is_pressed(hotkey="R"):
-    print("R pressed")
-    vals.m3 = 100
-  if keyboard.is_pressed(hotkey="D"):
-    print("D pressed")
-    vals.m3 = -100
-  if keyboard.is_pressed(hotkey="T"):
-    print("T pressed")
-    vals.m4 = 100
-  if keyboard.is_pressed(hotkey="F"):
-    print("F pressed")
-    vals.m4 = -100
-  comm.ser_write(ser, packet=comm.ser_make_motor_packet(vals))
-  time.sleep(0.05)
+    vals.m1_speed = 5
+    vals.m1_steps = 1
+    ser_nucleo.ser_write(ser, packet=ser_nucleo.ser_make_motor_packet(vals))
+    time.sleep(0.1)
+  
   
 if __name__ == "__main__":
-  ser = comm.ser_init(9600, 5)
+  ser = ser_nucleo.ser_init(9600, 5)
   try:
     while True:
-      
       main(ser)
   except KeyboardInterrupt:
-    comm.ser_close(ser)
+    ser_nucleo.ser_close(ser)
 
 
 
@@ -71,6 +57,26 @@ if __name__ == "__main__":
 	return crc;
 }'''
 
-
+'''if keyboard.is_pressed(hotkey="A"):
+    print("A pressed")
+    vals.m1 = -100
+  if keyboard.is_pressed(hotkey="E"):
+    print("E pressed")
+    vals.m2 = 100
+  if keyboard.is_pressed(hotkey="S"):
+    print("S pressed")
+    vals.m2 = -100
+  if keyboard.is_pressed(hotkey="R"):
+    print("R pressed")
+    vals.m3 = 100
+  if keyboard.is_pressed(hotkey="D"):
+    print("D pressed")
+    vals.m3 = -100
+  if keyboard.is_pressed(hotkey="T"):
+    print("T pressed")
+    vals.m4 = 100
+  if keyboard.is_pressed(hotkey="F"):
+    print("F pressed")
+    vals.m4 = -100'''
 
 

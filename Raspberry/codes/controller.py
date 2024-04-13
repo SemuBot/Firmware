@@ -2,7 +2,7 @@ import serial
 import serial.tools.list_ports
 
 from pydualsense import *
-import comm
+import codes.ser_nucleo as ser_nucleo
 import time
 
 
@@ -14,7 +14,7 @@ def main(ser: serial.Serial):
     vals.m4 = 0
     vals.m5 = 0
     raise KeyboardInterrupt  # Raise KeyboardInterrupt to exit the loop
-  vals = comm.MotorValues()
+  vals = ser.MotorValues()
 
   #print("Press any key to continue...")
   print(dualsense.state.LX)
@@ -40,20 +40,20 @@ def main(ser: serial.Serial):
   if dualsense.state.RY > 20:
     vals.m4 = 100
     
-  comm.ser_write(ser, packet=comm.ser_make_motor_packet(vals))
+  ser.ser_write(ser, packet=ser.ser_make_motor_packet(vals))
   time.sleep(0.05)
   
 if __name__ == "__main__":
-  ser = comm.ser_init(9600, 5)
+  ser_nucleo = ser_nucleo.ser_init(9600, 5)
   try:
     dualsense = pydualsense()
     dualsense.init()
     dualsense.light.setColorI(255,165,0)
     while True:
       
-      main(ser)
+      main(ser_nucleo)
   except KeyboardInterrupt:
-    comm.ser_close(ser)
+    ser_nucleo.ser_close(ser_nucleo)
     print("Exiting")
     dualsense.close()
 
