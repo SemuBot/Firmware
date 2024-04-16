@@ -12,14 +12,14 @@ def main(ser: serial.Serial):
   vals = ser_nucleo.MotorValues()
   if keyboard.is_pressed(hotkey="W"):
     print("W pressed")
-    vals.m1_speed = 10
-    vals.m1_steps = 2
+    vals.m2_speed = -8
+    vals.m2_steps = 5
     ser_nucleo.ser_write(ser, packet=ser_nucleo.ser_make_motor_packet(vals))
     time.sleep(0.1)
   if keyboard.is_pressed(hotkey="A"):
     print("A pressed")
-    vals.m1_speed = 5
-    vals.m1_steps = 1
+    vals.m2_speed = 8
+    vals.m2_steps = 5
     ser_nucleo.ser_write(ser, packet=ser_nucleo.ser_make_motor_packet(vals))
     time.sleep(0.1)
   

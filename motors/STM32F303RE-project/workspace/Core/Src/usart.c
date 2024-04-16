@@ -22,8 +22,6 @@
 
 /* USER CODE BEGIN 0 */
 
-volatile static usart_buffer_st usart_buffer = {0};
-volatile static bool usart_drdy_flag = false;
 // volatile int suurus = sizeof(usart_buffer);
 
 /* USER CODE END 0 */
@@ -121,6 +119,10 @@ void HAL_UART_MspDeInit(UART_HandleTypeDef* uartHandle)
 }
 
 /* USER CODE BEGIN 1 */
+
+
+volatile static usart_buffer_st usart_buffer = {0};
+volatile static bool usart_drdy_flag = false;
 
 bool USART_drdy(){
 	return usart_drdy_flag;

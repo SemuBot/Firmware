@@ -14,12 +14,31 @@ motor_st motor1 = {.dir_pin = MOTOR1_DIR_Pin,
 		.steps_left = 0
 };
 
+motor_st motor2 = {.dir_pin = MOTOR2_DIR_Pin,
+	    .pul_pin = MOTOR2_PUL_Pin,
+	    .en_pin = MOTOR2_EN_Pin,
+		.en_port = MOTOR2_EN_GPIO_Port,
+		.dir_port = MOTOR2_DIR_GPIO_Port,
+		.pul_port = MOTOR2_PUL_GPIO_Port,
+		.timer = &htim2,
+		.speed = 0,
+		.cmd_steps = 0,
+		.steps_left = 0
+};
+
 
 
 void static MOTOR_set_one(motor_st* motor, int8_t speed, uint8_t steps){
-	motor->timer->Instance->PSC = 0x8000 >> speed;
 	motor->steps_left = steps*MOTOR_STEPS_PER_REVOLUTION+1;
+
+	HAL_GPIO_WritePin(motor->dir_port, motor->dir_pin, speed > 0 ? GPIO_PIN_SET : GPIO_PIN_RESET);
+	speed = speed > 0 ? speed : -speed;
+	motor->timer->Instance->PSC = 0x8000 >> speed; // Mingi LUT
+	for (uint8_t i = 0; i < 254; i++){
+		asm("nop");
+	}
 	if (motor->steps_left){
+		HAL_GPIO_WritePin(motor->en_port, motor->en_pin, GPIO_PIN_SET);
 		HAL_TIM_PWM_Start_IT(motor->timer, TIM_CHANNEL_1);
 	}
 }
@@ -39,6 +58,7 @@ void static MOTOR_update(motor_st* motor){
 
 void MOTOR_main(){
 	MOTOR_update(&motor1);
+	MOTOR_update(&motor2);
 }
 
 void MOTOR_init(){
@@ -47,11 +67,15 @@ void MOTOR_init(){
 
 void MOTOR_set_all(usart_buffer_st* buf){
 	MOTOR_set_one(&motor1, buf->m1_speed, buf->m1_steps);
+	MOTOR_set_one(&motor2, buf->m2_speed, buf->m2_steps);
 }
 
 void MOTOR_interrupt(TIM_HandleTypeDef* htim){
 	if (htim == motor1.timer){
 		motor1.pulse_finished = true;
+	}
+	if (htim == motor2.timer){
+		motor2.pulse_finished = true;
 	}
 }
 

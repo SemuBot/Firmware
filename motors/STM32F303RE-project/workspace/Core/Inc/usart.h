@@ -45,7 +45,7 @@ void MX_USART2_UART_Init(void);
 
 /* USER CODE BEGIN Prototypes */
 
-typedef struct {
+typedef struct { // __attribute__(packed)
 	uint8_t delimiter_l;
 	uint8_t delimiter_h;
 	uint8_t cmd;

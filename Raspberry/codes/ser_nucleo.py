@@ -13,14 +13,14 @@ class CMD(IntEnum):
 
 class MotorValues():
   def __init__(self):
-    self.m1_speed = 1
-    self.m1_steps = 2
-    self.m2_speed = 3
-    self.m2_steps = 4
-    self.m3_speed = 5
-    self.m3_steps = 6
-    self.m4_speed = 7
-    self.m4_steps = 8
+    self.m1_speed = 0
+    self.m1_steps = 0
+    self.m2_speed = 0
+    self.m2_steps = 0
+    self.m3_speed = 0
+    self.m3_steps = 0
+    self.m4_speed = 0
+    self.m4_steps = 0
 
 packet_header_fmt = "<H"
 packet_cmd_fmt = "B"
