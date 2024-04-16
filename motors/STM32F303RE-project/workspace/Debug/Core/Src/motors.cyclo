@@ -1,0 +1,8 @@
+../Core/Src/motors.c:19:13:MOTOR_set_one	2
+../Core/Src/motors.c:27:13:MOTOR_update	3
+../Core/Src/motors.c:40:6:MOTOR_main	1
+../Core/Src/motors.c:44:6:MOTOR_init	1
+../Core/Src/motors.c:48:6:MOTOR_set_all	1
+../Core/Src/motors.c:52:6:MOTOR_interrupt	2
+../Core/Src/motors.c:58:6:MOTOR_test	1
+../Core/Src/motors.c:62:6:HAL_TIM_PWM_PulseFinishedCallback	1

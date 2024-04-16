@@ -11,19 +11,18 @@
 #include "stdbool.h"
 #define MOVE_DURATION 10 // 5 seconds in milliseconds
 
-typedef struct{ // Check number sizes
+struct Motors{ // Check number sizes
   int8_t DIR_PIN;
   int8_t STEP_PIN;
   int8_t EN_PIN;
   int8_t SPEED;
-  int8_t SPEED_CNT;
   int16_t STEPS;
   TIM_TypeDef  *TIMER;
   GPIO_TypeDef *EN_PORT;
   GPIO_TypeDef *DIR_PORT;
-  GPIO_TypeDef *PWM_PORT;
-  int8_t PWM_PIN;
-  bool is_high;
-} Motors;
+  bool moving;
+} ;
 
+void moveMotor(struct Motors* motor);
+int clamp(int value, int min, int max);
 #endif /* MOTORS_H */

@@ -1,0 +1,8 @@
+../Core/Src/motors.c:19:13:MOTOR_set_one	16	static
+../Core/Src/motors.c:27:13:MOTOR_update	16	static
+../Core/Src/motors.c:40:6:MOTOR_main	8	static
+../Core/Src/motors.c:44:6:MOTOR_init	8	static
+../Core/Src/motors.c:48:6:MOTOR_set_all	16	static
+../Core/Src/motors.c:52:6:MOTOR_interrupt	16	static
+../Core/Src/motors.c:58:6:MOTOR_test	8	static
+../Core/Src/motors.c:62:6:HAL_TIM_PWM_PulseFinishedCallback	16	static

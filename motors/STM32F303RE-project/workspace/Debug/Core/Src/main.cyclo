@@ -1,9 +1,5 @@
-../Core/Src/main.c:84:6:move_motor	5
-../Core/Src/main.c:112:6:HAL_TIM_PeriodElapsedCallback	1
-../Core/Src/main.c:134:6:add_motor_val	2
-../Core/Src/main.c:149:6:receive	8
-../Core/Src/main.c:176:5:main	1
-../Core/Src/main.c:311:6:SystemClock_Config	4
-../Core/Src/main.c:362:6:HAL_UART_RxCpltCallback	1
-../Core/Src/main.c:372:6:HAL_GPIO_EXTI_Callback	3
-../Core/Src/main.c:397:6:Error_Handler	1
+../Core/Src/main.c:142:5:main	1
+../Core/Src/main.c:253:6:SystemClock_Config	4
+../Core/Src/main.c:304:6:HAL_UART_RxCpltCallback	1
+../Core/Src/main.c:460:6:HAL_GPIO_EXTI_Callback	2
+../Core/Src/main.c:529:6:Error_Handler	1

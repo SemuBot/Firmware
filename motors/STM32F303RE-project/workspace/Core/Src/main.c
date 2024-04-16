@@ -109,15 +109,15 @@ struct Motors motor3 = {
 };
 
 struct Motors motor4 = {
-    .DIR_PIN = MOTOR4_DIR_Pin,
-    .STEP_PIN = MOTOR4_PUL_Pin,
-    .EN_PIN = MOTOR4_EN_Pin,
-    .SPEED = 100,
-    .STEPS = 200,
-    .TIMER = TIM4,
-    .EN_PORT = MOTOR4_EN_GPIO_Port,
-    .DIR_PORT = MOTOR4_DIR_GPIO_Port,
-    .moving = false
+	.DIR_PIN = MOTOR4_DIR_Pin,
+	.STEP_PIN = MOTOR4_PUL_Pin,
+	.EN_PIN = MOTOR4_EN_Pin,
+	.SPEED = 100,
+	.STEPS = 200,
+	.TIMER = TIM4,
+	.EN_PORT = MOTOR4_EN_GPIO_Port,
+	.DIR_PORT = MOTOR4_DIR_GPIO_Port,
+	.moving = false
 };
 
 struct Motors motor5 = {
@@ -181,8 +181,6 @@ int main(void)
   HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_1); //Start timer
   HAL_UART_Receive_IT(&huart2, UART2_rxBuffer, MAX_COMMAND_LENGTH);
   //HAL_UART_Receive_IT(&huart1, UART2_rxBuffer, MAX_COMMAND_LENGTH);
-
-
 	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
 	HAL_GPIO_WritePin(motor1.DIR_PORT, motor1.DIR_PIN, GPIO_PIN_SET);
 	HAL_GPIO_WritePin(motor2.DIR_PORT, motor2.DIR_PIN, GPIO_PIN_RESET);
@@ -199,13 +197,12 @@ int main(void)
 	motor3.STEPS = 1500;
 	motor3.SPEED = 5;
 
-	motor4.STEPS = 1500;
-	motor4.SPEED = 60;
+	motor4.STEPS = 2500;
+	motor4.SPEED = 5;
 
-
-	moveMotor(&motor1);
+	//moveMotor(&motor1);
 	//moveMotor(&motor2);
-	moveMotor(&motor3);
+	//moveMotor(&motor3);
 	moveMotor(&motor4);
 
 
@@ -215,7 +212,7 @@ int main(void)
 	HAL_GPIO_WritePin(motor1.DIR_PORT, motor1.DIR_PIN, GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(motor2.DIR_PORT, motor2.DIR_PIN, GPIO_PIN_SET);
 	HAL_GPIO_WritePin(motor3.DIR_PORT, motor3.DIR_PIN, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(motor4.DIR_PORT, motor4.DIR_PIN, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(motor4.DIR_PORT, motor4.DIR_PIN, GPIO_PIN_SET);
 
 	motor1.STEPS = 2500;
 	motor1.SPEED = 10;
@@ -231,9 +228,9 @@ int main(void)
 
 
 	moveMotor(&motor4);
-	moveMotor(&motor3);
+	//moveMotor(&motor3);
 	//moveMotor(&motor2);
-	moveMotor(&motor1);
+	//moveMotor(&motor1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -306,7 +303,7 @@ void SystemClock_Config(void)
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
     HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
-
+    /*
     if (huart == &huart2) {
         if (UART2_rxBuffer[0] != '\0') {
             char *token = strtok((char *)UART2_rxBuffer, "_");
@@ -453,6 +450,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
         // Restart UART receive interrupt
         HAL_UART_Receive_IT(&huart2, UART2_rxBuffer, MAX_COMMAND_LENGTH);
     }
+    */
 }
 
 
@@ -461,9 +459,63 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
+    HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
+
   // Check if the button (PC13) is pressed
   if (GPIO_Pin == GPIO_PIN_13)
   {
+	    HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
+
+		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
+		HAL_GPIO_WritePin(motor1.DIR_PORT, motor1.DIR_PIN, GPIO_PIN_SET);
+		HAL_GPIO_WritePin(motor2.DIR_PORT, motor2.DIR_PIN, GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(motor3.DIR_PORT, motor3.DIR_PIN, GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(motor4.DIR_PORT, motor4.DIR_PIN, GPIO_PIN_SET);
+
+		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
+		motor1.STEPS = 2500;
+		motor1.SPEED = 5;
+
+		motor2.STEPS = 1500;
+		motor2.SPEED = 5;
+
+		motor3.STEPS = 1500;
+		motor3.SPEED = 5;
+
+		motor4.STEPS = 1500;
+		motor4.SPEED = 5;
+
+		moveMotor(&motor1);
+		moveMotor(&motor2);
+		moveMotor(&motor3);
+		moveMotor(&motor4);
+
+
+		HAL_Delay(1000);
+		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
+
+		HAL_GPIO_WritePin(motor1.DIR_PORT, motor1.DIR_PIN, GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(motor2.DIR_PORT, motor2.DIR_PIN, GPIO_PIN_SET);
+		HAL_GPIO_WritePin(motor3.DIR_PORT, motor3.DIR_PIN, GPIO_PIN_SET);
+		HAL_GPIO_WritePin(motor4.DIR_PORT, motor4.DIR_PIN, GPIO_PIN_RESET);
+
+		motor1.STEPS = 2500;
+		motor1.SPEED = 10;
+
+		motor2.STEPS = 1500;
+		motor2.SPEED = 10;
+
+		motor3.STEPS = 1500;
+		motor3.SPEED = 10;
+
+		motor4.STEPS = 1500;
+		motor4.SPEED = 10;
+
+
+		moveMotor(&motor4);
+		moveMotor(&motor3);
+		moveMotor(&motor2);
+		moveMotor(&motor1);
 
   }
 }
