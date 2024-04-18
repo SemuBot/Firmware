@@ -91,6 +91,8 @@ void Error_Handler(void);
 #define MOTOR5_EN_GPIO_Port GPIOB
 #define MOTOR5_PUL_Pin GPIO_PIN_6
 #define MOTOR5_PUL_GPIO_Port GPIOC
+#define CS_ENC_1_Pin GPIO_PIN_9
+#define CS_ENC_1_GPIO_Port GPIOA
 #define MOTOR4_PUL_Pin GPIO_PIN_11
 #define MOTOR4_PUL_GPIO_Port GPIOA
 #define TCK_Pin GPIO_PIN_14
