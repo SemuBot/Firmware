@@ -21,6 +21,8 @@ class MotorValues():
     self.m3_steps = 0
     self.m4_speed = 0
     self.m4_steps = 0
+    self.m5_speed = 0
+    self.m5_steps = 0
 
 packet_header_fmt = "<H"
 packet_cmd_fmt = "B"
@@ -28,7 +30,7 @@ packet_crc_fmt = "H"
 
 packet_header = 0x4994
 formats = {
-  CMD.MOVE_MOTOR: "bBbBbBbB",
+  CMD.MOVE_MOTOR: "bBbBbBbBbB",
   CMD.READ_ENC: "HHHH"
 }
 
@@ -50,7 +52,7 @@ def ser_packet_size(cmd):
 def ser_make_motor_packet(values: MotorValues):
   cmd = CMD.MOVE_MOTOR
   return struct.pack(ser_make_cmd_format(cmd), packet_header, cmd, values.m1_speed, values.m1_steps, values.m2_speed, 
-                     values.m2_steps, values.m3_speed, values.m3_steps, values.m4_speed, values.m4_steps)
+                     values.m2_steps, values.m3_speed, values.m3_steps, values.m4_speed, values.m4_steps, values.m5_speed, values.m5_steps)
 
 
 def ser_write(ser: serial.Serial, packet: bytes):

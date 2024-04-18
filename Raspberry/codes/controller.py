@@ -1,59 +1,79 @@
 import serial
 import serial.tools.list_ports
-
-from pydualsense import *
-import codes.ser_nucleo as ser_nucleo
+import struct 
+from enum import IntEnum
+import keyboard
+import ser_nucleo
 import time
-
+from pydualsense import *
+steps = 4
+speed = 8
 
 def main(ser: serial.Serial):
+  vals = ser_nucleo.MotorValues()
   if dualsense.state.R1:
-    vals.m1 = 0
-    vals.m2 = 0
-    vals.m3 = 0
-    vals.m4 = 0
-    vals.m5 = 0
     raise KeyboardInterrupt  # Raise KeyboardInterrupt to exit the loop
-  vals = ser.MotorValues()
+  if dualsense.state.LX < -40:
+    vals.m1_speed = -speed
+    vals.m1_steps = steps
+    ser_nucleo.ser_write(ser, packet=ser_nucleo.ser_make_motor_packet(vals))
+    time.sleep(0.1)
+  if dualsense.state.LX > 40:
+    vals.m1_speed = speed
+    vals.m1_steps = steps
+    ser_nucleo.ser_write(ser, packet=ser_nucleo.ser_make_motor_packet(vals))
+    time.sleep(0.1)
 
-  #print("Press any key to continue...")
-  print(dualsense.state.LX)
-  if dualsense.state.LX < -20:
-    vals.m1 = 100
-  if dualsense.state.LX > 20:
-    vals.m1 = 100
-
-
-  if dualsense.state.LY < -20:
-    vals.m2 = 100
-  if dualsense.state.LY > 20:
-    vals.m2 = 100
-    
-  if dualsense.state.RX < -20:
-    vals.m3 = 100
-  if dualsense.state.RX > 20:
-    vals.m3 = 100
-    
-    
-  if dualsense.state.RY < -20:
-    vals.m4 = 100
-  if dualsense.state.RY > 20:
-    vals.m4 = 100
-    
-  ser.ser_write(ser, packet=ser.ser_make_motor_packet(vals))
-  time.sleep(0.05)
-  
+  if dualsense.state.LY < -40:
+    vals.m2_speed = -speed
+    vals.m2_steps = steps
+    ser_nucleo.ser_write(ser, packet=ser_nucleo.ser_make_motor_packet(vals))
+    time.sleep(0.1)
+  if dualsense.state.LY > 40:
+    vals.m2_speed = speed
+    vals.m2_steps = steps
+    ser_nucleo.ser_write(ser, packet=ser_nucleo.ser_make_motor_packet(vals))
+    time.sleep(0.1)
+  if dualsense.state.RX < -40:
+    vals.m3_speed = -speed
+    vals.m3_steps = steps
+    ser_nucleo.ser_write(ser, packet=ser_nucleo.ser_make_motor_packet(vals))
+    time.sleep(0.1)
+  if dualsense.state.RX > 40:
+    vals.m3_speed = speed
+    vals.m3_steps = steps
+    ser_nucleo.ser_write(ser, packet=ser_nucleo.ser_make_motor_packet(vals))
+    time.sleep(0.1)
+  if dualsense.state.RY < -40:
+    vals.m4_speed = -speed
+    vals.m4_steps = steps
+    ser_nucleo.ser_write(ser, packet=ser_nucleo.ser_make_motor_packet(vals))
+    time.sleep(0.1)
+  if dualsense.state.RY > 40:
+    vals.m4_speed = speed
+    vals.m4_steps = steps
+    ser_nucleo.ser_write(ser, packet=ser_nucleo.ser_make_motor_packet(vals))
+    time.sleep(0.1) 
+  if dualsense.state.circle:
+    vals.m5_speed = speed
+    vals.m5_steps = steps
+    ser_nucleo.ser_write(ser, packet=ser_nucleo.ser_make_motor_packet(vals))
+    time.sleep(0.1)   
+  if dualsense.state.triangle:
+    vals.m4_speed = speed
+    vals.m4_steps = steps
+    ser_nucleo.ser_write(ser, packet=ser_nucleo.ser_make_motor_packet(vals))
+    time.sleep(0.1)  
 if __name__ == "__main__":
-  ser_nucleo = ser_nucleo.ser_init(9600, 5)
+  ser = ser_nucleo.ser_init(9600, 5)
   try:
     dualsense = pydualsense()
     dualsense.init()
     dualsense.light.setColorI(255,165,0)
     while True:
-      
-      main(ser_nucleo)
+      main(ser)
   except KeyboardInterrupt:
-    ser_nucleo.ser_close(ser_nucleo)
+    ser_nucleo.ser_close(ser)
     print("Exiting")
     dualsense.close()
 

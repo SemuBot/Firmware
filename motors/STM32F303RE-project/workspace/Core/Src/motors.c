@@ -26,6 +26,43 @@ motor_st motor2 = {.dir_pin = MOTOR2_DIR_Pin,
 		.steps_left = 0
 };
 
+motor_st motor3 = {.dir_pin = MOTOR3_DIR_Pin,
+	    .pul_pin = MOTOR3_PUL_Pin,
+	    .en_pin = MOTOR3_EN_Pin,
+		.en_port = MOTOR3_EN_GPIO_Port,
+		.dir_port = MOTOR3_DIR_GPIO_Port,
+		.pul_port = MOTOR3_PUL_GPIO_Port,
+		.timer = &htim3,
+		.speed = 0,
+		.cmd_steps = 0,
+		.steps_left = 0
+};
+
+motor_st motor4 = {.dir_pin = MOTOR4_DIR_Pin,
+	    .pul_pin = MOTOR4_PUL_Pin,
+	    .en_pin = MOTOR4_EN_Pin,
+		.en_port = MOTOR4_EN_GPIO_Port,
+		.dir_port = MOTOR4_DIR_GPIO_Port,
+		.pul_port = MOTOR4_PUL_GPIO_Port,
+		.timer = &htim4,
+		.speed = 0,
+		.cmd_steps = 0,
+		.steps_left = 0
+};
+
+motor_st motor5 = {.dir_pin = MOTOR5_DIR_Pin,
+	    .pul_pin = MOTOR5_PUL_Pin,
+	    .en_pin = MOTOR5_EN_Pin,
+		.en_port = MOTOR5_EN_GPIO_Port,
+		.dir_port = MOTOR5_DIR_GPIO_Port,
+		.pul_port = MOTOR5_PUL_GPIO_Port,
+		.timer = &htim8,
+		.speed = 0,
+		.cmd_steps = 0,
+		.steps_left = 0
+};
+
+
 
 
 void static MOTOR_set_one(motor_st* motor, int8_t speed, uint8_t steps){
@@ -59,6 +96,9 @@ void static MOTOR_update(motor_st* motor){
 void MOTOR_main(){
 	MOTOR_update(&motor1);
 	MOTOR_update(&motor2);
+	MOTOR_update(&motor3);
+	MOTOR_update(&motor4);
+	MOTOR_update(&motor5);
 }
 
 void MOTOR_init(){
@@ -68,6 +108,9 @@ void MOTOR_init(){
 void MOTOR_set_all(usart_buffer_st* buf){
 	MOTOR_set_one(&motor1, buf->m1_speed, buf->m1_steps);
 	MOTOR_set_one(&motor2, buf->m2_speed, buf->m2_steps);
+	MOTOR_set_one(&motor3, buf->m3_speed, buf->m3_steps);
+	MOTOR_set_one(&motor4, buf->m4_speed, buf->m4_steps);
+	MOTOR_set_one(&motor5, buf->m5_speed, buf->m5_steps);
 }
 
 void MOTOR_interrupt(TIM_HandleTypeDef* htim){
@@ -77,12 +120,23 @@ void MOTOR_interrupt(TIM_HandleTypeDef* htim){
 	if (htim == motor2.timer){
 		motor2.pulse_finished = true;
 	}
+	if (htim == motor3.timer){
+		motor3.pulse_finished = true;
+	}
+	if (htim == motor4.timer){
+		motor4.pulse_finished = true;
+	}
+	if (htim == motor5.timer){
+		motor5.pulse_finished = true;
+	}
+
 }
 
+/*
 void MOTOR_test(){
 	MOTOR_set_one(&motor1, 10, 1);
 }
-
+*/
 void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef* htim){
 	MOTOR_interrupt(htim);
 }

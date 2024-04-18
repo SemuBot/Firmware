@@ -57,6 +57,8 @@ typedef struct { // __attribute__(packed)
 	uint8_t m3_steps;
 	int8_t m4_speed;
 	uint8_t m4_steps;
+	int8_t m5_speed;
+	uint8_t m5_steps;
 	//uint16_t crc;
 }usart_buffer_st;
 
