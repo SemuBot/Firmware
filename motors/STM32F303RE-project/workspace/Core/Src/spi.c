@@ -153,5 +153,13 @@ void SPI_read_data(encoder_st* encoder){
 	encoder->is_valid = checksum_check(encoder->is_valid);
 }
 
+void SPI_read_all(){
+	encoder_st* ptr = &encoders;
+	for (uint8_t i=0;i<sizeof(encoders)/sizeof(encoder_st);i++){
+		SPI_read_data(&ptr[i]);
+	}
+
+
+}
 
 /* USER CODE END 1 */

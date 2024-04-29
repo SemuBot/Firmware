@@ -58,7 +58,9 @@ typedef struct{
 } enc_list_st;
 
 uint16_t SPI_get_last_val();
-bool SPI_read_data();
+void SPI_read_data(encoder_st *encoder);
+
+void SPI_read_all();
 
 /* USER CODE END Prototypes */
 
