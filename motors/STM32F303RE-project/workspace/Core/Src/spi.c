@@ -126,6 +126,7 @@ void HAL_SPI_MspDeInit(SPI_HandleTypeDef* spiHandle)
 }
 
 /* USER CODE BEGIN 1 */
+// Git test
 
 enc_list_st encoders = {
 		.enc_1 = {.cs_pin=CS_ENC_1_Pin, .cs_port=CS_ENC_1_GPIO_Port} // TODO add other encoders
