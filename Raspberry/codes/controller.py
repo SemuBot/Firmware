@@ -60,13 +60,13 @@ def main(ser: serial.Serial):
     ser_nucleo.ser_write(ser, packet=ser_nucleo.ser_make_motor_packet(vals))
     time.sleep(0.1) 
   if dualsense.state.circle:
-    vals.m5_speed = speed
-    vals.m5_steps = steps
+    vals.m3_speed = speed
+    vals.m3_steps = steps
     ser_nucleo.ser_write(ser, packet=ser_nucleo.ser_make_motor_packet(vals))
     time.sleep(0.1)   
   if dualsense.state.triangle:
-    vals.m4_speed = speed
-    vals.m4_steps = steps
+    vals.m3_speed = -speed
+    vals.m3_steps = steps
     ser_nucleo.ser_write(ser, packet=ser_nucleo.ser_make_motor_packet(vals))
     time.sleep(0.1)  
   if dualsense.state.L1:
@@ -95,7 +95,7 @@ def main(ser: serial.Serial):
   else:
       down_pressed = False  # Reset the flag 
       up_pressed = False 
-      
+  
 if __name__ == "__main__":
   ser = ser_nucleo.ser_init(9600, 5)
   try:

@@ -58,11 +58,12 @@ def ser_make_motor_packet(values: MotorValues):
 def ser_write(ser: serial.Serial, packet: bytes):
   print(list(packet))
   ser.write(packet)
+  print(packet)
   ser.flush()
 
 def ser_read(ser: serial.Serial, cmd: CMD):
   read_bytes = ser.read(ser_packet_size(cmd))
-
+  print(read_bytes)
 
 
 if __name__ == "__main__":

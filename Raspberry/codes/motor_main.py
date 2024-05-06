@@ -5,7 +5,6 @@ from enum import IntEnum
 import keyboard
 import ser_nucleo
 import time
-
 steps = 5
 
 def main(ser: serial.Serial):
