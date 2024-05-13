@@ -22,7 +22,9 @@
 
 /* USER CODE BEGIN 0 */
 
-
+#include "stdbool.h"
+#include "spi.h"
+extern UART_HandleTypeDef huart2;
 /* USER CODE END 0 */
 
 SPI_HandleTypeDef hspi2;
@@ -41,11 +43,11 @@ void MX_SPI2_Init(void)
   hspi2.Instance = SPI2;
   hspi2.Init.Mode = SPI_MODE_MASTER;
   hspi2.Init.Direction = SPI_DIRECTION_2LINES_RXONLY;
-  hspi2.Init.DataSize = SPI_DATASIZE_16BIT;
+  hspi2.Init.DataSize = SPI_DATASIZE_8BIT;
   hspi2.Init.CLKPolarity = SPI_POLARITY_HIGH;
   hspi2.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi2.Init.NSS = SPI_NSS_SOFT;
-  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
+  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_128;
   hspi2.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi2.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi2.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -149,18 +151,27 @@ static bool checksum_check(uint16_t value){
 
 void SPI_read_data(encoder_st* encoder){
 	HAL_GPIO_WritePin(encoder->cs_port, encoder->cs_pin, GPIO_PIN_RESET);
-	HAL_SPI_Receive(&hspi2, encoder->value, sizeof(encoders.enc_1.value));
+	HAL_SPI_Receive(&hspi2, (uint8_t*)&encoder->value, 1 ,HAL_MAX_DELAY);
 	HAL_GPIO_WritePin(encoder->cs_port, encoder->cs_pin, GPIO_PIN_SET);
-	encoder->is_valid = checksum_check(encoder->is_valid);
+	//encoder->is_valid = checksum_check(encoder->is_valid);
 }
 
 void SPI_read_all(){
-	encoder_st* ptr = &encoders;
+	encoder_st* ptr = (encoder_st*) &encoders;
 	for (uint8_t i=0;i<sizeof(encoders)/sizeof(encoder_st);i++){
 		SPI_read_data(&ptr[i]);
 	}
+}
+void SPI_test(){
+	SPI_read_data(&encoders.enc_1);
+	//HAL_UART_Transmit(&huart2, &encoders.enc_1.value, sizeof(encoders.enc_1.value), HAL_MAX_DELAY);
+	HAL_Delay(500);
+	//HAL_GPIO_TogglePin(CS_ENC_1_GPIO_Port,CS_ENC_1_Pin);
+
 
 
 }
+
+
 
 /* USER CODE END 1 */

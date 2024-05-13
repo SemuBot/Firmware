@@ -62,6 +62,7 @@ void SPI_read_data(encoder_st *encoder);
 
 void SPI_read_all();
 
+void SPI_test();
 /* USER CODE END Prototypes */
 
 #ifdef __cplusplus
