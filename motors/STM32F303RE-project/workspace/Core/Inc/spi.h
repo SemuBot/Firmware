@@ -27,8 +27,8 @@ extern "C" {
 
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-
 /* USER CODE BEGIN Includes */
+#include "motors.h"
 
 /* USER CODE END Includes */
 
@@ -47,6 +47,7 @@ typedef struct {
 	uint8_t is_valid;
 	uint16_t cs_pin;
 	GPIO_TypeDef* cs_port;
+	motor_st motor;
 }encoder_st;
 
 typedef struct{

@@ -60,13 +60,13 @@ def main(ser: serial.Serial):
     ser_nucleo.ser_write(ser, packet=ser_nucleo.ser_make_motor_packet(vals))
     time.sleep(0.1) 
   if dualsense.state.circle:
-    vals.m3_speed = speed
-    vals.m3_steps = steps
+    vals.m5_speed = speed
+    vals.m5_steps = steps
     ser_nucleo.ser_write(ser, packet=ser_nucleo.ser_make_motor_packet(vals))
     time.sleep(0.1)   
   if dualsense.state.triangle:
-    vals.m3_speed = -speed
-    vals.m3_steps = steps
+    vals.m5_speed = -speed
+    vals.m5_steps = steps
     ser_nucleo.ser_write(ser, packet=ser_nucleo.ser_make_motor_packet(vals))
     time.sleep(0.1)  
   if dualsense.state.L1:
@@ -84,14 +84,12 @@ def main(ser: serial.Serial):
               speed += 1
               up_pressed = True  
               down_pressed = False  
-              print(speed)
   elif dualsense.state.DpadDown:
       if speed > 1:
           if not down_pressed:  # Check if D-pad down has been pressed previously
               speed -= 1
               down_pressed = True  # Set flag to indicate D-pad down has been pressed
               up_pressed = False  # Reset flag for D-pad up
-              print(speed)
   else:
       down_pressed = False  # Reset the flag 
       up_pressed = False 

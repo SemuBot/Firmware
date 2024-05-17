@@ -28,8 +28,14 @@ typedef struct { // Check number sizes
 	uint8_t cmd_steps;
 	uint16_t steps_left;
 	volatile bool pulse_finished;
-} motor_st;
 
+} motor_st;
+extern motor_st motor1;
+extern motor_st motor2;
+extern motor_st motor3;
+extern motor_st motor4;
+extern motor_st motor5;
+x
 #define MOTOR_STEPS_PER_REVOLUTION 800
 #define MOTOR_CCR1_START_VALUE 75
 

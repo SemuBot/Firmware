@@ -21,6 +21,7 @@
 #include "spi.h"
 #include "usart.h"
 /* USER CODE BEGIN 0 */
+#include "motors.h"
 
 
 /* USER CODE END 0 */
@@ -129,11 +130,11 @@ void HAL_SPI_MspDeInit(SPI_HandleTypeDef* spiHandle)
 // Git test
 
 enc_list_st encoders = {
-    .enc_1 = {.cs_pin = CS_ENC_1_Pin, .cs_port = CS_ENC_1_GPIO_Port}, // Encoder 1
-    .enc_2 = {.cs_pin = CS_ENC_2_Pin, .cs_port = CS_ENC_2_GPIO_Port}, // Encoder 2
-    .enc_3 = {.cs_pin = CS_ENC_3_Pin, .cs_port = CS_ENC_3_GPIO_Port}, // Encoder 3
-    .enc_4 = {.cs_pin = CS_ENC_4_Pin, .cs_port = CS_ENC_4_GPIO_Port}, // Encoder 4
-    .enc_5 = {.cs_pin = CS_ENC_5_Pin, .cs_port = CS_ENC_5_GPIO_Port}  // Encoder 5
+    .enc_1 = {.cs_pin = CS_ENC_1_Pin, .cs_port = CS_ENC_1_GPIO_Port, .motor = &motor1}, // Encoder 1
+    .enc_2 = {.cs_pin = CS_ENC_2_Pin, .cs_port = CS_ENC_2_GPIO_Port, .motor = &motor2}, // Encoder 2
+    .enc_3 = {.cs_pin = CS_ENC_3_Pin, .cs_port = CS_ENC_3_GPIO_Port, .motor = &motor3}, // Encoder 3
+    .enc_4 = {.cs_pin = CS_ENC_4_Pin, .cs_port = CS_ENC_4_GPIO_Port, .motor = &motor4}, // Encoder 4
+    .enc_5 = {.cs_pin = CS_ENC_5_Pin, .cs_port = CS_ENC_5_GPIO_Port, .motor = &motor5}  // Encoder 5
 };
 
 
@@ -159,14 +160,10 @@ static bool checksum_check(uint16_t value){
 }
 
 void SPI_read_data(encoder_st* encoder){
-	HAL_GPIO_WritePin(encoder->cs_port, encoder->cs_pin, GPIO_PIN_RESET);
-	(&hspi2, encoder->value, sizeof(encoders.enc_1.value), HAL_MAX_DELAY);
-	HAL_SPI_Receive(&hspi2, encoder->value, sizeof(encoders.enc_2.value), HAL_MAX_DELAY);
-	HAL_SPI_Receive(&hspi2, encoder->value, sizeof(encoders.enc_3.value), HAL_MAX_DELAY);
-	HAL_SPI_Receive(&hspi2, encoder->value, sizeof(encoders.enc_4.value), HAL_MAX_DELAY);
-	HAL_SPI_Receive(&hspi2, encoder->value, sizeof(encoders.enc_5.value), HAL_MAX_DELAY);
-	HAL_GPIO_WritePin(encoder->cs_port, encoder->cs_pin, GPIO_PIN_SET);
-	encoder->is_valid = checksum_check(encoder->is_valid);
+    HAL_GPIO_WritePin(encoder->cs_port, encoder->cs_pin, GPIO_PIN_RESET);
+    HAL_SPI_Receive(&hspi2, encoder->value, sizeof(encoder->value), HAL_MAX_DELAY);
+    HAL_GPIO_WritePin(encoder->cs_port, encoder->cs_pin, GPIO_PIN_SET);
+    encoder->is_valid = checksum_check(encoder->is_valid);
     UART2_SendData(encoder->value, sizeof(encoder->value));
 }
 

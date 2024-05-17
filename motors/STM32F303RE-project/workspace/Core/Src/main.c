@@ -114,7 +114,13 @@ int main(void)
     /* USER CODE BEGIN 3 */
 	  MOTOR_main();
 	  SPI_read_all();
+	    for (int i = 0; i < sizeof(encoder) / sizeof(encoder_st); i++) {
+	      encoder_st* encoder = &encoders[i];
+	      uint16_t encoderValue = (encoder->value[0] << 8) | encoder->value[1];
 
+	      if (encoderValue > 100 && encoderValue < 4000) {
+	    	  MOTOR_set_one(encoder->motor,0,0);
+	      }
 	  if (USART_drdy()){
 		  USART_reset_drdy();
 		  MOTOR_set_all(USART_get_buffer());
