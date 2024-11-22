@@ -1,0 +1,30 @@
+/*
+ * ros_usart.h
+ *
+ *  Created on: Nov 22, 2024
+ *      Author: medved
+ */
+
+#ifndef ROS_USART_H
+#define ROS_USART_H
+
+#include <stdint.h>
+
+/**
+ * Initialize USART2 for ROS2 communication.
+ */
+void ROS_USART_Init(void);
+
+/**
+ * Check if a new command is ready.
+ * @return 1 if a new command is ready, 0 otherwise.
+ */
+uint8_t ROS_USART_IsCommandReady(void);
+
+/**
+ * Process the received command.
+ * @param callback Function pointer to handle parsed linear_x, linear_y, and angular_z values.
+ */
+void ROS_USART_ProcessCommand(void (*callback)(float, float, float));
+
+#endif // ROS_USART_H

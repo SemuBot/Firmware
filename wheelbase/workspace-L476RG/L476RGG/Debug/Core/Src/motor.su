@@ -1,0 +1,5 @@
+../Core/Src/motor.c:23:6:motor_init	24	static
+../Core/Src/motor.c:36:6:motor_update	32	static
+../Core/Src/motor.c:69:6:motor_enable	16	static
+../Core/Src/motor.c:77:6:motor_disable	16	static
+../Core/Src/motor.c:82:6:motor_setDutyCycleLimit	16	static

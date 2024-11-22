@@ -124,4 +124,31 @@ void HAL_UART_MspDeInit(UART_HandleTypeDef* uartHandle)
 
 /* USER CODE BEGIN 1 */
 
+
+volatile static usart_buffer_st usart_buffer = {0};
+volatile static bool usart_drdy_flag = false;
+
+bool USART_drdy(){
+	return usart_drdy_flag;
+}
+
+void USART_reset_drdy(){
+	usart_drdy_flag = false;
+}
+
+void USART_init(){
+	HAL_UART_Receive_IT(&huart2, (uint8_t*)(&usart_buffer), sizeof(usart_buffer));
+}
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
+	if (huart == &huart2){
+		usart_drdy_flag = true;
+		HAL_UART_Receive_IT(&huart2, (uint8_t*)(&usart_buffer), sizeof(usart_buffer));
+	}
+}
+
+usart_buffer_st* USART_get_buffer(){
+	return &usart_buffer;
+}
+
 /* USER CODE END 1 */

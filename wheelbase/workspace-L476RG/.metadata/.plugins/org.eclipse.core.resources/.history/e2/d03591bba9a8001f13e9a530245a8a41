@@ -1,0 +1,62 @@
+/*
+ * ros_usart.c
+ *
+ *  Created on: Nov 22, 2024
+ *      Author: medved
+ */
+
+
+#include "ros_usart.h"
+#include <stdio.h>
+#include <string.h>
+
+#define CMD_BUFFER_SIZE 128
+
+static UART_HandleTypeDef huart2;
+static char cmd_buffer[CMD_BUFFER_SIZE];
+static uint8_t cmd_index = 0;
+static volatile uint8_t cmd_ready = 0;
+
+
+/**
+ * Callback for UART interrupt handling.
+ */
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
+    if (huart->Instance == USART2) {
+        // Handle received character
+        char received_char = cmd_buffer[cmd_index];
+        if (received_char == '\r' || received_char == '\n') {
+            cmd_ready = 1;
+            cmd_buffer[cmd_index] = '\0'; // Null-terminate the command
+            cmd_index = 0; // Reset the buffer index
+        } else {
+            cmd_index++;
+            if (cmd_index >= CMD_BUFFER_SIZE) {
+                cmd_index = 0; // Prevent buffer overflow
+            }
+        }
+        // Continue receiving
+        HAL_UART_Receive_IT(huart, (uint8_t *)&cmd_buffer[cmd_index], 1);
+    }
+}
+
+/**
+ * Check if a new command is available.
+ */
+uint8_t ROS_USART_IsCommandReady(void) {
+    return cmd_ready;
+}
+
+/**
+ * Parse the received command and handle it.
+ */
+void ROS_USART_ProcessCommand(void (*callback)(float, float, float)) {
+    if (cmd_ready) {
+        float linear_x = 0.0, linear_y = 0.0, angular_z = 0.0;
+        if (sscanf(cmd_buffer, "RS:%f:%f:%f", &linear_x, &linear_y, &angular_z) == 3) {
+            // Pass parsed values to the callback function
+            callback(linear_x, linear_y, angular_z);
+        }
+        cmd_ready = 0; // Reset the command flag
+    }
+}

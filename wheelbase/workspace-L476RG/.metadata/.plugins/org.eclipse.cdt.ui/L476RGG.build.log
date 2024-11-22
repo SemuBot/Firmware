@@ -1,0 +1,17 @@
+10:15:48 **** Incremental Build of configuration Debug for project L476RGG ****
+make -j16 all 
+arm-none-eabi-gcc "../Core/Src/motor.c" -mcpu=cortex-m4 -std=gnu11 -g3 -DDEBUG -DUSE_HAL_DRIVER -DSTM32L476xx -c -I../Core/Inc -I../Drivers/STM32L4xx_HAL_Driver/Inc -I../Drivers/STM32L4xx_HAL_Driver/Inc/Legacy -I../Drivers/CMSIS/Device/ST/STM32L4xx/Include -I../Drivers/CMSIS/Include -I../USB_DEVICE/App -I../USB_DEVICE/Target -I../Middlewares/ST/STM32_USB_Device_Library/Core/Inc -I../Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -fcyclomatic-complexity -MMD -MP -MF"Core/Src/motor.d" -MT"Core/Src/motor.o" --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -o "Core/Src/motor.o"
+arm-none-eabi-gcc -o "L476RGG.elf" @"objects.list"   -mcpu=cortex-m4 -T"/home/medved/repos/Firmware/wheelbase/workspace-L476RG/L476RGG/STM32L476RGTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="L476RGG.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -Wl,--start-group -lc -lm -Wl,--end-group
+Finished building target: L476RGG.elf
+ 
+arm-none-eabi-size  L476RGG.elf 
+arm-none-eabi-objdump -h -S L476RGG.elf  > "L476RGG.list"
+   text	   data	    bss	    dec	    hex	filename
+  55192	    756	   9260	  65208	   feb8	L476RGG.elf
+Finished building: default.size.stdout
+ 
+Finished building: L476RGG.list
+ 
+
+10:15:49 Build Finished. 0 errors, 0 warnings. (took 603ms)
+

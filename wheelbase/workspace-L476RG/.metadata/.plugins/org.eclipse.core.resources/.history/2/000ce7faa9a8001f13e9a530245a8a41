@@ -1,0 +1,88 @@
+/*
+ * motor.c
+ *
+ *  Created on: Nov 18, 2024
+ *      Author: medved
+ */
+
+
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+#include <motor.h>
+
+#include "stm32l4xx_hal.h"
+#include "usart.h"
+
+#define DUTY_CYCLE_MINIMUM       10
+#define DUTY_CYCLE_LIMIT_DEFAULT 100
+
+static uint8_t duty_cycle_limit;
+
+
+void motor_init(Motor_data *motor_handler, Motor_pinout *pinout, TIM_HandleTypeDef *pwm_timer)
+{
+    motor_handler->pinout = pinout;
+    motor_handler->pwm_timer = pwm_timer;
+    motor_handler->duty_cycle = 0.0f;
+
+    duty_cycle_limit = DUTY_CYCLE_LIMIT_DEFAULT;
+
+    motor_disable(motor_handler);
+}
+
+
+
+void motor_update(Motor_data *motor_handler)
+{
+    uint16_t scaled_duty_cycle;
+    uint16_t arr_value = __HAL_TIM_GET_AUTORELOAD(motor_handler->pwm_timer); // Get ARR value
+
+    if (motor_handler->duty_cycle >= DUTY_CYCLE_MINIMUM)
+    {
+    	motor_enable(motor_handler);
+        HAL_GPIO_WritePin(motor_handler->pinout->dir_port, motor_handler->pinout->dir_pin, GPIO_PIN_SET);
+    }
+    else if (motor_handler->duty_cycle <= -DUTY_CYCLE_MINIMUM)
+    {
+        HAL_GPIO_WritePin(motor_handler->pinout->dir_port, motor_handler->pinout->dir_pin, GPIO_PIN_RESET);
+    	motor_enable(motor_handler);
+
+    }
+    else
+    {
+        motor_disable(motor_handler);
+        return;
+    }
+
+    // Scale duty cycle relative to ARR
+    scaled_duty_cycle = (uint16_t)((fabs(motor_handler->duty_cycle) / 100.0f) * arr_value);
+    if (scaled_duty_cycle > arr_value) // Ensure it doesn't exceed the ARR
+    {
+        scaled_duty_cycle = arr_value;
+    }
+
+    __HAL_TIM_SET_COMPARE(motor_handler->pwm_timer, TIM_CHANNEL_1, scaled_duty_cycle);
+
+}
+
+
+
+void motor_enable(Motor_data *motor_handler)
+{
+	HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
+
+    HAL_TIM_PWM_Start(motor_handler->pwm_timer, TIM_CHANNEL_1);
+}
+
+
+void motor_disable(Motor_data *motor_handler)
+{
+    HAL_TIM_PWM_Stop(motor_handler->pwm_timer, TIM_CHANNEL_1);
+}
+
+void motor_setDutyCycleLimit(Motor_data *motor_handler, uint8_t limit)
+{
+    duty_cycle_limit = limit;
+}
