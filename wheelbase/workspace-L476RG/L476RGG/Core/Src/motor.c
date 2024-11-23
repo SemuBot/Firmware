@@ -16,6 +16,9 @@
 #include "usart.h"
 
 #define DUTY_CYCLE_LIMIT_DEFAULT 100
+#define MAX_PWM_VALUE 1000
+#define MAX_LINEAR_VELOCITY 1.0f
+#define MIN_LINEAR_VELOCITY -1.0f
 
 static uint8_t duty_cycle_limit;
 
@@ -38,15 +41,16 @@ void motor_update(Motor_data *motor_handler)
     uint16_t scaled_duty_cycle;
     uint16_t arr_value = __HAL_TIM_GET_AUTORELOAD(motor_handler->pwm_timer);
 
+    // Check if the motor is enabled
     if (motor_handler->duty_cycle >= 0)
     {
-    	motor_enable(motor_handler);
+        motor_enable(motor_handler);
         HAL_GPIO_WritePin(motor_handler->pinout->dir_port, motor_handler->pinout->dir_pin, GPIO_PIN_SET);
     }
     else if (motor_handler->duty_cycle < 0)
     {
         HAL_GPIO_WritePin(motor_handler->pinout->dir_port, motor_handler->pinout->dir_pin, GPIO_PIN_RESET);
-    	motor_enable(motor_handler);
+        motor_enable(motor_handler);
     }
     else
     {
@@ -54,21 +58,39 @@ void motor_update(Motor_data *motor_handler)
         return;
     }
 
+    // Scale the duty cycle based on the motor's duty cycle
     scaled_duty_cycle = (uint16_t)((fabs(motor_handler->duty_cycle) / 100.0f) * arr_value);
     if (scaled_duty_cycle > arr_value)
     {
         scaled_duty_cycle = arr_value;
     }
 
+    // Update the PWM compare value
     __HAL_TIM_SET_COMPARE(motor_handler->pwm_timer, TIM_CHANNEL_1, scaled_duty_cycle);
-
+    char duty_cycle_str[50];
+    int len = snprintf(duty_cycle_str, sizeof(duty_cycle_str), "Duty Cycle: %.2f\n", motor_handler->duty_cycle);
+    HAL_UART_Transmit(&huart2, (uint8_t *)duty_cycle_str, len, HAL_MAX_DELAY);
 }
 
+void set_motor_speed(Motor_data *motor_handler, float linear_x)
+{
+    // Map the linear velocity to PWM range
+    motor_handler->duty_cycle = (linear_x / MAX_LINEAR_VELOCITY) * 100.0f;
+
+    // Ensure the duty cycle stays within valid limits
+    if (motor_handler->duty_cycle > duty_cycle_limit)
+        motor_handler->duty_cycle = duty_cycle_limit;
+
+    if (motor_handler->duty_cycle < -duty_cycle_limit)
+        motor_handler->duty_cycle = -duty_cycle_limit;
+
+    // Call motor update to apply changes to the motor
+    motor_update(motor_handler);
+}
 
 
 void motor_enable(Motor_data *motor_handler)
 {
-	HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
 
     HAL_TIM_PWM_Start(motor_handler->pwm_timer, TIM_CHANNEL_1);
 }

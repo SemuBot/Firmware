@@ -26,10 +26,14 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "motor.h"
+#include "cmd_vel.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
+CmdVel cmd_vel_data;
+uint8_t rx_data;
+
 
 /* USER CODE END PTD */
 
@@ -67,22 +71,8 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-void print_timer_frequency(void)
-{
-    uint32_t timer_clock_freq = HAL_RCC_GetPCLK1Freq();  // or use a fixed value if you know the timer clock
-    uint32_t prescaler = htim1.Init.Prescaler;           // Your timer prescaler value
-    uint32_t arr_value = htim1.Init.Period;              // Your ARR value
 
-    // Calculate the timer frequency
-    float timer_freq = (float)timer_clock_freq / ((prescaler + 1) * (arr_value + 1));
 
-    // Prepare the string to send over UART
-    char buffer[100];
-    sprintf(buffer, "Timer Frequency: %.2f Hz\r\n", timer_freq);
-
-    // Send the frequency over UART
-    HAL_UART_Transmit(&huart2, (uint8_t*)buffer, strlen(buffer), HAL_MAX_DELAY);
-}
 /* USER CODE END 0 */
 
 /**
@@ -117,15 +107,18 @@ int main(void)
   MX_TIM1_Init();
   MX_USART2_UART_Init();
   MX_USB_DEVICE_Init();
+  MX_TIM3_Init();
+  MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_Base_Start_IT(&htim1);
   HAL_TIM_PWM_Start_IT(&htim1, TIM_CHANNEL_1);
+  HAL_UART_Receive_IT(&huart2, &rx_data, 1);
 
   motor_init(&motor, &motor_pinout, &htim1);
 
   motor_setDutyCycleLimit(&motor, 100);
 
-  motor.duty_cycle = 80.0;
+  //motor.duty_cycle = 80.0;
   motor_update(&motor);
   /* USER CODE END 2 */
 
@@ -136,12 +129,13 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	motor.duty_cycle = 50.0;
+	//motor.duty_cycle = 50.0;
 	motor_update(&motor);
+    set_motor_speed(&motor, cmd_vel_data.linear_x);
 
-	HAL_Delay(2000);
-	motor.duty_cycle = -20.0;
-	motor_update(&motor);
+	//HAL_Delay(2000);
+	//motor.duty_cycle = -20.0;
+	//motor_update(&motor);
 	  HAL_Delay(2000);
 	}
   /* USER CODE END 3 */
@@ -208,6 +202,12 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
+    if (huart->Instance == USART2) {
+        USART_Receive_CmdVel(huart, &cmd_vel_data);
+        HAL_UART_Receive_IT(huart, &rx_data, 1);
+    }
+}
 
 /* USER CODE END 4 */
 

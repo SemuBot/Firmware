@@ -65,7 +65,7 @@ main-build: L476RGG.elf secondary-outputs
 
 # Tool invocations
 L476RGG.elf L476RGG.map: $(OBJS) $(USER_OBJS) /home/medved/repos/Firmware/wheelbase/workspace-L476RG/L476RGG/STM32L476RGTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "L476RGG.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"/home/medved/repos/Firmware/wheelbase/workspace-L476RG/L476RGG/STM32L476RGTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="L476RGG.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -Wl,--start-group -lc -lm -Wl,--end-group
+	arm-none-eabi-gcc -o "L476RGG.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"/home/medved/repos/Firmware/wheelbase/workspace-L476RG/L476RGG/STM32L476RGTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="L476RGG.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -u _scanf_float -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

@@ -1,0 +1,2 @@
+../Core/Src/cmd_vel.c:20:6:USART_Receive_CmdVel	24	static
+../Core/Src/cmd_vel.c:41:6:Process_CmdVel	104	static

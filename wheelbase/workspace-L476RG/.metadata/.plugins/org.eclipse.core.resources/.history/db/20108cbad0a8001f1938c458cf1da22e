@@ -1,0 +1,22 @@
+/*
+ * usb.h
+ *
+ *  Created on: Nov 22, 2024
+ *      Author: medved
+ */
+
+#ifndef INC_USB_H_
+#define INC_USB_H_
+
+#include <stdint.h>
+#include "usbd_cdc_if.h"
+
+#define USB_BUFFER APP_RX_DATA_SIZE
+
+void usb_init(void);
+uint8_t usb_transmit(uint8_t *ptr_data, uint16_t lenght);
+uint8_t usb_receive(uint8_t *ptr_data, uint16_t lenght);
+void usb_setUpperLayerCallback(ReceiveCallbackType rx_callback);
+
+
+#endif /* INC_USB_H_ */
