@@ -1,0 +1,41 @@
+/*
+ * motor.h
+ *
+ *  Created on: Nov 18, 2024
+ *      Author: medved
+ */
+
+/*
+ * motor.h
+ *
+ *  Created on: Nov 18, 2024
+ *      Author: medved
+ */
+
+#ifndef INC_MOTOR_H_
+#define INC_MOTOR_H_
+
+#include "stm32l4xx_hal.h"
+
+typedef struct
+{
+    GPIO_TypeDef *dir_port;
+    uint16_t dir_pin;
+    TIM_HandleTypeDef *pwm_timer;
+    GPIO_TypeDef *pwm_port;
+    uint16_t pwm_pin;
+    double duty_cycle;
+} motor_data;
+
+extern motor_data motor1;
+extern motor_data motor2;
+extern motor_data motor3;
+
+void motor_init(motor_data *motor_handler, TIM_HandleTypeDef *pwm_timer);
+void motor_update(motor_data *motor_handler);
+void motor_enable(motor_data *motor_handler);
+void motor_disable(motor_data *motor_handler);
+void motor_setDutyCycleLimit(motor_data *motor_handler, uint8_t limit);
+
+#endif /* INC_MOTOR_H_ */
+

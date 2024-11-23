@@ -50,17 +50,7 @@ uint8_t rx_data;
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-Motor_pinout motor_pinout = {
-    .dir_port = GPIOC,
-    .dir_pin = GPIO_PIN_9
-};
 
-Motor_data motor = {
-    .pwm_timer = &htim1,
-    .pwm_port = GPIOA,
-    .pwm_pin = GPIO_PIN_8,
-    .duty_cycle = 0.0
-};
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -104,22 +94,14 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_TIM1_Init();
   MX_USART2_UART_Init();
   MX_USB_DEVICE_Init();
-  MX_TIM3_Init();
-  MX_TIM4_Init();
+
   /* USER CODE BEGIN 2 */
-  HAL_TIM_Base_Start_IT(&htim1);
-  HAL_TIM_PWM_Start_IT(&htim1, TIM_CHANNEL_1);
   HAL_UART_Receive_IT(&huart2, &rx_data, 1);
 
-  motor_init(&motor, &motor_pinout, &htim1);
+  timer_init();
 
-  motor_setDutyCycleLimit(&motor, 100);
-
-  //motor.duty_cycle = 80.0;
-  motor_update(&motor);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -129,10 +111,14 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	//motor.duty_cycle = 50.0;
-	motor_update(&motor);
-    set_motor_speed(&motor, cmd_vel_data.linear_x);
 
+	float linear_x = cmd_vel_data.linear_x;
+	float linear_y = cmd_vel_data.linear_y;
+	float omega = cmd_vel_data.angular_z;
+
+	calculate_motor_duty_cycles(linear_x, linear_y, omega, &motor1, &motor2, &motor3);
+
+	HAL_Delay(10); // Small delay for control loop timing
 	//HAL_Delay(2000);
 	//motor.duty_cycle = -20.0;
 	//motor_update(&motor);

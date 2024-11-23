@@ -13,6 +13,10 @@
 
 typedef struct {
     float linear_x;
+    float linear_y;
+    float linear_z;
+    float angular_x;
+    float angular_y;
     float angular_z;
 } CmdVel;
 

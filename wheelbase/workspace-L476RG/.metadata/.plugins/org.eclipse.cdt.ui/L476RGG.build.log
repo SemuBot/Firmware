@@ -1,21 +1,17 @@
-08:59:44 **** Build of configuration Debug for project L476RGG ****
+10:58:19 **** Incremental Build of configuration Debug for project L476RGG ****
 make -j16 all 
 arm-none-eabi-gcc "../Core/Src/main.c" -mcpu=cortex-m4 -std=gnu11 -g3 -DDEBUG -DUSE_HAL_DRIVER -DSTM32L476xx -c -I../Core/Inc -I../Drivers/STM32L4xx_HAL_Driver/Inc -I../Drivers/STM32L4xx_HAL_Driver/Inc/Legacy -I../Drivers/CMSIS/Device/ST/STM32L4xx/Include -I../Drivers/CMSIS/Include -I../USB_DEVICE/App -I../USB_DEVICE/Target -I../Middlewares/ST/STM32_USB_Device_Library/Core/Inc -I../Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -fcyclomatic-complexity -MMD -MP -MF"Core/Src/main.d" -MT"Core/Src/main.o" --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -o "Core/Src/main.o"
-../Core/Src/main.c: In function 'main':
-../Core/Src/main.c:134:5: warning: implicit declaration of function 'set_motor_speed' [-Wimplicit-function-declaration]
-  134 |     set_motor_speed(&motor, cmd_vel_data.linear_x);
-      |     ^~~~~~~~~~~~~~~
 arm-none-eabi-gcc -o "L476RGG.elf" @"objects.list"   -mcpu=cortex-m4 -T"/home/medved/repos/Firmware/wheelbase/workspace-L476RG/L476RGG/STM32L476RGTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="L476RGG.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -u _scanf_float -Wl,--start-group -lc -lm -Wl,--end-group
 Finished building target: L476RGG.elf
  
 arm-none-eabi-size  L476RGG.elf 
 arm-none-eabi-objdump -h -S L476RGG.elf  > "L476RGG.list"
    text	   data	    bss	    dec	    hex	filename
-  70508	    756	   9556	  80820	  13bb4	L476RGG.elf
+  70504	    844	   9700	  81048	  13c98	L476RGG.elf
 Finished building: default.size.stdout
  
 Finished building: L476RGG.list
  
 
-08:59:45 Build Finished. 0 errors, 1 warnings. (took 798ms)
+10:58:19 Build Finished. 0 errors, 0 warnings. (took 657ms)
 

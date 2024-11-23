@@ -12,7 +12,7 @@
 #include "usart.h"
 #include "motor.h"
 
-#define BUFFER_SIZE 128
+#define BUFFER_SIZE 256
 
 static char usart_buffer[BUFFER_SIZE];
 static uint8_t rx_data;
@@ -25,8 +25,19 @@ void USART_Receive_CmdVel(UART_HandleTypeDef *huart, CmdVel *cmd_vel) {
         index = 0;
 
         if (strstr(usart_buffer, "linear_x") && strstr(usart_buffer, "angular_z")) {
-            sscanf(usart_buffer, "{linear_x:%f,angular_z:%f}", &cmd_vel->linear_x, &cmd_vel->angular_z);
-            //Process_CmdVel(cmd_vel);
+            sscanf(
+                usart_buffer,
+                "{linear_x:%f,linear_y:%f,linear_z:%f,angular_x:%f,angular_y:%f,angular_z:%f}",
+                &cmd_vel->linear_x,
+                &cmd_vel->linear_y,
+                &cmd_vel->linear_z,
+                &cmd_vel->angular_x,
+                &cmd_vel->angular_y,
+                &cmd_vel->angular_z
+            );
+
+            Process_CmdVel(cmd_vel);
+
         } else {
             const char *error_msg = "Invalid cmd_vel format\n";
             HAL_UART_Transmit(huart, (uint8_t *)error_msg, strlen(error_msg), HAL_MAX_DELAY);
@@ -39,10 +50,22 @@ void USART_Receive_CmdVel(UART_HandleTypeDef *huart, CmdVel *cmd_vel) {
 }
 
 void Process_CmdVel(CmdVel *cmd_vel) {
+    char debug_msg[128];
 
-    char debug_msg[64];
-	HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
-    snprintf(debug_msg, sizeof(debug_msg), "Linear X: %.2f, Angular Z: %.2f\n", cmd_vel->linear_x, cmd_vel->angular_z);
+    HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
+
+    snprintf(
+        debug_msg,
+        sizeof(debug_msg),
+        "Linear: [X: %.2f, Y: %.2f, Z: %.2f], Angular: [X: %.2f, Y: %.2f, Z: %.2f]\n",
+        cmd_vel->linear_x,
+        cmd_vel->linear_y,
+        cmd_vel->linear_z,
+        cmd_vel->angular_x,
+        cmd_vel->angular_y,
+        cmd_vel->angular_z
+    );
+
     HAL_UART_Transmit(&huart2, (uint8_t *)debug_msg, strlen(debug_msg), HAL_MAX_DELAY);
-
 }
+

@@ -1,16 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <section name="Workbench">
 	<section name="org.eclipse.ui.texteditor.FindReplaceDialog">
-		<item key="selection" value="DUTY_CYCLE_LIMIT_DEFAULT"/>
+		<item key="selection" value=""/>
 		<item key="wrap" value="true"/>
 		<item key="casesensitive" value="false"/>
 		<item key="wholeword" value="false"/>
 		<item key="incremental" value="false"/>
 		<item key="isRegEx" value="false"/>
 		<list key="findhistory">
+			<item value="Enable_PwmInterrupts"/>
+			<item value="duty_cycle_limit"/>
+			<item value="motor_data"/>
+			<item value="motor_handler"/>
 			<item value="DUTY_CYCLE_LIMIT_DEFAULT"/>
 		</list>
 		<list key="replacehistory">
+			<item value="motor_st"/>
+			<item value="motor_data"/>
 		</list>
 	</section>
 	<section name="org.eclipse.ui.texteditor.FindReplaceDialog_dialogBounds">

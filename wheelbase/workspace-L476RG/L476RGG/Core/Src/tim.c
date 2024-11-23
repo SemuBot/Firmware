@@ -21,6 +21,16 @@
 #include "tim.h"
 
 /* USER CODE BEGIN 0 */
+void timer_init(void){
+  MX_TIM1_Init();
+  MX_TIM3_Init();
+  MX_TIM4_Init();
+  HAL_TIM_Base_Start_IT(&htim1);
+  HAL_TIM_Base_Start_IT(&htim3);
+  HAL_TIM_Base_Start_IT(&htim4);
+}
+
+
 
 /* USER CODE END 0 */
 

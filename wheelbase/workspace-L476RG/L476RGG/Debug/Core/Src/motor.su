@@ -1,6 +1,5 @@
-../Core/Src/motor.c:26:6:motor_init	24	static
-../Core/Src/motor.c:39:6:motor_update	96	static
-../Core/Src/motor.c:75:6:set_motor_speed	24	static
-../Core/Src/motor.c:92:6:motor_enable	16	static
-../Core/Src/motor.c:99:6:motor_disable	16	static
-../Core/Src/motor.c:104:6:motor_setDutyCycleLimit	16	static
+../Core/Src/motor.c:58:6:motor_init	16	static
+../Core/Src/motor.c:65:6:motor_update	96	static
+../Core/Src/motor.c:101:6:calculate_motor_duty_cycles	48	static
+../Core/Src/motor.c:121:6:motor_enable	16	static
+../Core/Src/motor.c:126:6:motor_disable	16	static

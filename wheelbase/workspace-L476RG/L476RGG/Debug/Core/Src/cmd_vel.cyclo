@@ -1,2 +1,2 @@
 ../Core/Src/cmd_vel.c:20:6:USART_Receive_CmdVel	5
-../Core/Src/cmd_vel.c:41:6:Process_CmdVel	1
+../Core/Src/cmd_vel.c:52:6:Process_CmdVel	1
