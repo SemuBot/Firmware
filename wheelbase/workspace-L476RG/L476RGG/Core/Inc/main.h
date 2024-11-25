@@ -65,18 +65,30 @@ void Error_Handler(void);
 #define USART_RX_GPIO_Port GPIOA
 #define LD2_Pin GPIO_PIN_5
 #define LD2_GPIO_Port GPIOA
+#define MOTOR2_PWM_Pin GPIO_PIN_6
+#define MOTOR2_PWM_GPIO_Port GPIOA
+#define CS_ENC_3_Pin GPIO_PIN_6
+#define CS_ENC_3_GPIO_Port GPIOC
 #define MOTOR3_DIR_Pin GPIO_PIN_7
 #define MOTOR3_DIR_GPIO_Port GPIOC
 #define MOTOR2_DIR_Pin GPIO_PIN_8
 #define MOTOR2_DIR_GPIO_Port GPIOC
 #define MOTOR1_DIR_Pin GPIO_PIN_9
 #define MOTOR1_DIR_GPIO_Port GPIOC
+#define MOTOR1_PWM_Pin GPIO_PIN_8
+#define MOTOR1_PWM_GPIO_Port GPIOA
+#define CS_ENC_1_Pin GPIO_PIN_9
+#define CS_ENC_1_GPIO_Port GPIOA
+#define CS_ENC_2_Pin GPIO_PIN_10
+#define CS_ENC_2_GPIO_Port GPIOA
 #define TMS_Pin GPIO_PIN_13
 #define TMS_GPIO_Port GPIOA
 #define TCK_Pin GPIO_PIN_14
 #define TCK_GPIO_Port GPIOA
 #define SWO_Pin GPIO_PIN_3
 #define SWO_GPIO_Port GPIOB
+#define MOTOR3_PWM_Pin GPIO_PIN_6
+#define MOTOR3_PWM_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 

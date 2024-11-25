@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "spi.h"
 #include "tim.h"
 #include "usart.h"
 #include "usb_device.h"
@@ -27,6 +28,7 @@
 /* USER CODE BEGIN Includes */
 #include "motor.h"
 #include "cmd_vel.h"
+#include <stdbool.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -94,14 +96,17 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_TIM1_Init();
   MX_USART2_UART_Init();
   MX_USB_DEVICE_Init();
-
+  MX_TIM3_Init();
+  MX_TIM4_Init();
+  MX_SPI2_Init();
   /* USER CODE BEGIN 2 */
   HAL_UART_Receive_IT(&huart2, &rx_data, 1);
 
   timer_init();
-
+  SPI_init();
   /* USER CODE END 2 */
 
   /* Infinite loop */

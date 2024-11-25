@@ -1,0 +1,3 @@
+[console_scripts]
+cmd_vel_publisher = semubot.cmd_vel_publisher:main
+cmd_vel_serial = semubot.cmd_vel_serial:main

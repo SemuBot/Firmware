@@ -1,0 +1,6 @@
+source;share/semubot/hook/pythonpath.ps1
+source;share/semubot/hook/pythonpath.dsv
+source;share/semubot/hook/pythonpath.sh
+source;share/semubot/hook/ament_prefix_path.ps1
+source;share/semubot/hook/ament_prefix_path.dsv
+source;share/semubot/hook/ament_prefix_path.sh

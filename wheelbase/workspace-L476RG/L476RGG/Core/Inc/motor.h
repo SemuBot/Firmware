@@ -19,9 +19,9 @@
 #define ROBOT_RADIUS 0.05f // Robot radius (distance from center to each motor, in meters)
 #define PWM_SCALING_FACTOR 100.0f
 
-#define MOTOR1_ANGLE 0.0f        // Motor 1 at 0 degrees
+#define MOTOR3_ANGLE 0.0f        // Motor 3 at 0 degrees
 #define MOTOR2_ANGLE (2.0f * M_PI / 3.0f) // Motor 2 at 120 degrees
-#define MOTOR3_ANGLE (4.0f * M_PI / 3.0f) // Motor 3 at 240 degrees
+#define MOTOR1_ANGLE (4.0f * M_PI / 3.0f) // Motor 1 at 240 degrees
 
 typedef struct
 {

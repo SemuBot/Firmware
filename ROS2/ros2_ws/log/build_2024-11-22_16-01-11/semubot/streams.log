@@ -1,0 +1,41 @@
+[1.530s] Invoking command in '/home/semubot-laptop/ros2_ws/src/semubot': DEBUGINFOD_URLS=https://debuginfod.ubuntu.com PYTHONPATH=/home/semubot-laptop/ros2_ws/build/semubot/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/semubot-laptop/ros2_ws/install/semubot/lib/python3.12/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated setup.py egg_info --egg-base ../../build/semubot build --build-base /home/semubot-laptop/ros2_ws/build/semubot/build install --record /home/semubot-laptop/ros2_ws/build/semubot/install.log --single-version-externally-managed install_data
+[1.914s] running egg_info
+[1.914s] creating ../../build/semubot/semubot.egg-info
+[1.942s] writing ../../build/semubot/semubot.egg-info/PKG-INFO
+[1.943s] writing dependency_links to ../../build/semubot/semubot.egg-info/dependency_links.txt
+[1.943s] writing entry points to ../../build/semubot/semubot.egg-info/entry_points.txt
+[1.943s] writing requirements to ../../build/semubot/semubot.egg-info/requires.txt
+[1.943s] writing top-level names to ../../build/semubot/semubot.egg-info/top_level.txt
+[1.944s] writing manifest file '../../build/semubot/semubot.egg-info/SOURCES.txt'
+[2.002s] reading manifest file '../../build/semubot/semubot.egg-info/SOURCES.txt'
+[2.003s] writing manifest file '../../build/semubot/semubot.egg-info/SOURCES.txt'
+[2.003s] running build
+[2.003s] running build_py
+[2.003s] creating /home/semubot-laptop/ros2_ws/build/semubot/build
+[2.004s] creating /home/semubot-laptop/ros2_ws/build/semubot/build/lib
+[2.004s] creating /home/semubot-laptop/ros2_ws/build/semubot/build/lib/semubot
+[2.004s] copying semubot/cmd_vel_serial.py -> /home/semubot-laptop/ros2_ws/build/semubot/build/lib/semubot
+[2.004s] copying semubot/cmd_vel_publisher.py -> /home/semubot-laptop/ros2_ws/build/semubot/build/lib/semubot
+[2.004s] copying semubot/__init__.py -> /home/semubot-laptop/ros2_ws/build/semubot/build/lib/semubot
+[2.005s] running install
+[2.015s] running install_lib
+[2.043s] creating /home/semubot-laptop/ros2_ws/install/semubot/lib/python3.12/site-packages/semubot
+[2.044s] copying /home/semubot-laptop/ros2_ws/build/semubot/build/lib/semubot/cmd_vel_serial.py -> /home/semubot-laptop/ros2_ws/install/semubot/lib/python3.12/site-packages/semubot
+[2.044s] copying /home/semubot-laptop/ros2_ws/build/semubot/build/lib/semubot/cmd_vel_publisher.py -> /home/semubot-laptop/ros2_ws/install/semubot/lib/python3.12/site-packages/semubot
+[2.044s] copying /home/semubot-laptop/ros2_ws/build/semubot/build/lib/semubot/__init__.py -> /home/semubot-laptop/ros2_ws/install/semubot/lib/python3.12/site-packages/semubot
+[2.045s] byte-compiling /home/semubot-laptop/ros2_ws/install/semubot/lib/python3.12/site-packages/semubot/cmd_vel_serial.py to cmd_vel_serial.cpython-312.pyc
+[2.045s] byte-compiling /home/semubot-laptop/ros2_ws/install/semubot/lib/python3.12/site-packages/semubot/cmd_vel_publisher.py to cmd_vel_publisher.cpython-312.pyc
+[2.046s] byte-compiling /home/semubot-laptop/ros2_ws/install/semubot/lib/python3.12/site-packages/semubot/__init__.py to __init__.cpython-312.pyc
+[2.046s] running install_data
+[2.047s] creating /home/semubot-laptop/ros2_ws/install/semubot/share/ament_index
+[2.047s] creating /home/semubot-laptop/ros2_ws/install/semubot/share/ament_index/resource_index
+[2.047s] creating /home/semubot-laptop/ros2_ws/install/semubot/share/ament_index/resource_index/packages
+[2.047s] copying resource/semubot -> /home/semubot-laptop/ros2_ws/install/semubot/share/ament_index/resource_index/packages
+[2.047s] copying package.xml -> /home/semubot-laptop/ros2_ws/install/semubot/share/semubot
+[2.048s] running install_egg_info
+[2.078s] Copying ../../build/semubot/semubot.egg-info to /home/semubot-laptop/ros2_ws/install/semubot/lib/python3.12/site-packages/semubot-0.0.0-py3.12.egg-info
+[2.080s] running install_scripts
+[2.270s] Installing cmd_vel_publisher script to /home/semubot-laptop/ros2_ws/install/semubot/lib/semubot
+[2.270s] Installing cmd_vel_serial script to /home/semubot-laptop/ros2_ws/install/semubot/lib/semubot
+[2.271s] writing list of installed files to '/home/semubot-laptop/ros2_ws/build/semubot/install.log'
+[2.319s] Invoked command in '/home/semubot-laptop/ros2_ws/src/semubot' returned '0': DEBUGINFOD_URLS=https://debuginfod.ubuntu.com PYTHONPATH=/home/semubot-laptop/ros2_ws/build/semubot/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/semubot-laptop/ros2_ws/install/semubot/lib/python3.12/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated setup.py egg_info --egg-base ../../build/semubot build --build-base /home/semubot-laptop/ros2_ws/build/semubot/build install --record /home/semubot-laptop/ros2_ws/build/semubot/install.log --single-version-externally-managed install_data

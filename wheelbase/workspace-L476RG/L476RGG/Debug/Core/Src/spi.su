@@ -1,0 +1,8 @@
+../Core/Src/spi.c:31:6:MX_SPI2_Init	8	static
+../Core/Src/spi.c:65:6:HAL_SPI_MspInit	48	static
+../Core/Src/spi.c:106:6:HAL_SPI_MspDeInit	16	static
+../Core/Src/spi.c:142:6:SPI_init	8	static
+../Core/Src/spi.c:147:6:UART2_SendData	16	static
+../Core/Src/spi.c:151:13:checksum_check	24	static
+../Core/Src/spi.c:161:6:SPI_read_data	16	static
+../Core/Src/spi.c:169:6:SPI_read_all	16	static

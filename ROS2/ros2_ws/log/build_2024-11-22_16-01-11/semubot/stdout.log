@@ -1,0 +1,39 @@
+running egg_info
+creating ../../build/semubot/semubot.egg-info
+writing ../../build/semubot/semubot.egg-info/PKG-INFO
+writing dependency_links to ../../build/semubot/semubot.egg-info/dependency_links.txt
+writing entry points to ../../build/semubot/semubot.egg-info/entry_points.txt
+writing requirements to ../../build/semubot/semubot.egg-info/requires.txt
+writing top-level names to ../../build/semubot/semubot.egg-info/top_level.txt
+writing manifest file '../../build/semubot/semubot.egg-info/SOURCES.txt'
+reading manifest file '../../build/semubot/semubot.egg-info/SOURCES.txt'
+writing manifest file '../../build/semubot/semubot.egg-info/SOURCES.txt'
+running build
+running build_py
+creating /home/semubot-laptop/ros2_ws/build/semubot/build
+creating /home/semubot-laptop/ros2_ws/build/semubot/build/lib
+creating /home/semubot-laptop/ros2_ws/build/semubot/build/lib/semubot
+copying semubot/cmd_vel_serial.py -> /home/semubot-laptop/ros2_ws/build/semubot/build/lib/semubot
+copying semubot/cmd_vel_publisher.py -> /home/semubot-laptop/ros2_ws/build/semubot/build/lib/semubot
+copying semubot/__init__.py -> /home/semubot-laptop/ros2_ws/build/semubot/build/lib/semubot
+running install
+running install_lib
+creating /home/semubot-laptop/ros2_ws/install/semubot/lib/python3.12/site-packages/semubot
+copying /home/semubot-laptop/ros2_ws/build/semubot/build/lib/semubot/cmd_vel_serial.py -> /home/semubot-laptop/ros2_ws/install/semubot/lib/python3.12/site-packages/semubot
+copying /home/semubot-laptop/ros2_ws/build/semubot/build/lib/semubot/cmd_vel_publisher.py -> /home/semubot-laptop/ros2_ws/install/semubot/lib/python3.12/site-packages/semubot
+copying /home/semubot-laptop/ros2_ws/build/semubot/build/lib/semubot/__init__.py -> /home/semubot-laptop/ros2_ws/install/semubot/lib/python3.12/site-packages/semubot
+byte-compiling /home/semubot-laptop/ros2_ws/install/semubot/lib/python3.12/site-packages/semubot/cmd_vel_serial.py to cmd_vel_serial.cpython-312.pyc
+byte-compiling /home/semubot-laptop/ros2_ws/install/semubot/lib/python3.12/site-packages/semubot/cmd_vel_publisher.py to cmd_vel_publisher.cpython-312.pyc
+byte-compiling /home/semubot-laptop/ros2_ws/install/semubot/lib/python3.12/site-packages/semubot/__init__.py to __init__.cpython-312.pyc
+running install_data
+creating /home/semubot-laptop/ros2_ws/install/semubot/share/ament_index
+creating /home/semubot-laptop/ros2_ws/install/semubot/share/ament_index/resource_index
+creating /home/semubot-laptop/ros2_ws/install/semubot/share/ament_index/resource_index/packages
+copying resource/semubot -> /home/semubot-laptop/ros2_ws/install/semubot/share/ament_index/resource_index/packages
+copying package.xml -> /home/semubot-laptop/ros2_ws/install/semubot/share/semubot
+running install_egg_info
+Copying ../../build/semubot/semubot.egg-info to /home/semubot-laptop/ros2_ws/install/semubot/lib/python3.12/site-packages/semubot-0.0.0-py3.12.egg-info
+running install_scripts
+Installing cmd_vel_publisher script to /home/semubot-laptop/ros2_ws/install/semubot/lib/semubot
+Installing cmd_vel_serial script to /home/semubot-laptop/ros2_ws/install/semubot/lib/semubot
+writing list of installed files to '/home/semubot-laptop/ros2_ws/build/semubot/install.log'

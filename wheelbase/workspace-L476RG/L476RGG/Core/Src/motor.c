@@ -22,33 +22,33 @@ static uint8_t duty_cycle_limit;
 
 
 motor_st motor1 = {
-	.dir_port = GPIOC,
-	.dir_pin = GPIO_PIN_9,
+	.dir_port = MOTOR1_DIR_GPIO_Port,
+	.dir_pin = MOTOR1_DIR_Pin,
     .pwm_timer = &htim1,
-    .pwm_port = GPIOA,
-    .pwm_pin = GPIO_PIN_8,
+    .pwm_port = MOTOR1_PWM_GPIO_Port,
+    .pwm_pin = MOTOR1_PWM_Pin,
     .duty_cycle = 0.0,
 	.duty_cycle_limit = DUTY_CYCLE_LIMIT
 
 };
 
 motor_st motor2 = {
-	.dir_port = GPIOC,
-	.dir_pin = GPIO_PIN_8,
+	.dir_port = MOTOR2_DIR_GPIO_Port,
+	.dir_pin = MOTOR2_DIR_Pin,
     .pwm_timer = &htim3,
-    .pwm_port = GPIOA,
-    .pwm_pin = GPIO_PIN_6,
+    .pwm_port = MOTOR2_PWM_GPIO_Port,
+    .pwm_pin = MOTOR2_PWM_Pin,
     .duty_cycle = 0.0,
 	.duty_cycle_limit = DUTY_CYCLE_LIMIT
 
 };
 
 motor_st motor3 = {
-	.dir_port = GPIOC,
-	.dir_pin = GPIO_PIN_7,
+	.dir_port = MOTOR3_DIR_GPIO_Port,
+	.dir_pin = MOTOR3_DIR_Pin,
     .pwm_timer = &htim4,
-    .pwm_port = GPIOB,
-    .pwm_pin = GPIO_PIN_6,
+    .pwm_port = MOTOR3_PWM_GPIO_Port,
+    .pwm_pin = MOTOR3_PWM_Pin,
     .duty_cycle = 0.0,
 	.duty_cycle_limit = DUTY_CYCLE_LIMIT
 };
