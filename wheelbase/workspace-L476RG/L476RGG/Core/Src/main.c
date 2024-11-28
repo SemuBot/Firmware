@@ -119,9 +119,14 @@ int main(void)
 
 	float linear_x = cmd_vel_data.linear_x;
 	float linear_y = cmd_vel_data.linear_y;
-	float omega = cmd_vel_data.angular_z;
+	float linear_z = cmd_vel_data.linear_z;
 
-	calculate_motor_duty_cycles(linear_x, linear_y, omega, &motor1, &motor2, &motor3);
+
+	float angular_x = cmd_vel_data.angular_x;
+	float angular_y = cmd_vel_data.angular_y;
+	float angular_z = cmd_vel_data.angular_z;
+
+	calculate_motor_duty_cycles(linear_x, linear_y, angular_z, &motor1, &motor2, &motor3);
 
 	HAL_Delay(10); // Small delay for control loop timing
 	//HAL_Delay(2000);
@@ -197,6 +202,8 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
     if (huart->Instance == USART2) {
         USART_Receive_CmdVel(huart, &cmd_vel_data);
         HAL_UART_Receive_IT(huart, &rx_data, 1);
+        HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
+
     }
 }
 

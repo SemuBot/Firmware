@@ -91,9 +91,9 @@ void motor_update(motor_st *motor_data)
     }
 
     __HAL_TIM_SET_COMPARE(motor_data->pwm_timer, TIM_CHANNEL_1, scaled_duty_cycle);
-    char duty_cycle_str[50];
-    int len = snprintf(duty_cycle_str, sizeof(duty_cycle_str), "Duty Cycle: %.2f\n", motor_data->duty_cycle);
-    HAL_UART_Transmit(&huart2, (uint8_t *)duty_cycle_str, len, HAL_MAX_DELAY);
+    //char duty_cycle_str[50];
+    //int len = snprintf(duty_cycle_str, sizeof(duty_cycle_str), "Duty Cycle: %.2f\n", motor_data->duty_cycle);
+    //HAL_UART_Transmit(&huart2, (uint8_t *)duty_cycle_str, len, HAL_MAX_DELAY);
 }
 
 

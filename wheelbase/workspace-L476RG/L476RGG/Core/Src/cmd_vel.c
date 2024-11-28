@@ -52,7 +52,6 @@ void USART_Receive_CmdVel(UART_HandleTypeDef *huart, CmdVel *cmd_vel) {
 void Process_CmdVel(CmdVel *cmd_vel) {
     char debug_msg[128];
 
-    HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
 
     snprintf(
         debug_msg,
