@@ -61,6 +61,8 @@ void Error_Handler(void);
 #define DEBUG_LED_GPIO_Port GPIOC
 #define MOTOR1_PWM_Pin GPIO_PIN_0
 #define MOTOR1_PWM_GPIO_Port GPIOC
+#define debug_Pin GPIO_PIN_3
+#define debug_GPIO_Port GPIOC
 #define MOTOR2_DIR_Pin GPIO_PIN_4
 #define MOTOR2_DIR_GPIO_Port GPIOA
 #define MOTOR2_PWM_Pin GPIO_PIN_6
