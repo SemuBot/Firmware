@@ -108,16 +108,15 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	  HAL_GPIO_WritePin(DEBUG_LED_GPIO_Port, DEBUG_LED_Pin, GPIO_PIN_SET);
-	  HAL_Delay(1000);
+	  if (CDC_Transmit_FS((uint8_t*)"USB Connected\n", 14) == USBD_OK) {
+	      HAL_GPIO_TogglePin(DEBUG_LED_GPIO_Port, DEBUG_LED_Pin);
+	  }
 
-	  char buffer[20];  // Buffer for random data
-	  int random_number = rand() % 1000;  // Generate a random number (0-999)
+	  char buffer[20];
+	  int random_number = rand() % 1000;
 	  int length = snprintf(buffer, sizeof(buffer), "Rand: %d\n", random_number);
 
-	  CDC_Transmit_FS((uint8_t*)buffer, length);  // Send over USB
-	  HAL_GPIO_WritePin(DEBUG_LED_GPIO_Port, DEBUG_LED_Pin, GPIO_PIN_RESET);
-	  HAL_Delay(1000);
+	  CDC_Transmit_FS((uint8_t*)buffer, length);
 
 
   }
