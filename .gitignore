@@ -6,4 +6,6 @@ cmake/
 Middleware/
 USB_DEVICE/
 CMakePresets.json
-
+build/
+CMakeFiles/
+.cache/

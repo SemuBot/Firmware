@@ -1,0 +1,28 @@
+= Setup for STM32 CLI
+
+== Setup
+
+* Install `arm-none-eabi-gcc`
+* Install https://www.st.com/en/development-tools/stm32cubemx.html[STM32CubeMX, window=read-later] 
+* Install https://www.st.com/en/development-tools/stm32cubeclt.html?ecmp=tt9470_gl_link_feb2019&rt=um&id=UM3088[STM32Cube, window=read-later] 
+
+* Add bin folders to PATH
+
+----
+export PATH="$PATH:$HOME/st/stm32cubeclt_1.18.0/STM32CubeProgrammer/bin"
+export PATH="$PATH:$HOME/st/stm32cubeclt_1.18.0/STLink-gdb-server/bin"
+----
+
+* Open the IOC file with CubeMX and generate code
+
+== Running
+
+----
+mkdir build
+cd build
+cmake ..
+cmake --build . -j4
+STM32_Programmer_CLI -c port=SWD freq=4000 -w Katse.elf
+STM32_Programmer_CLI -c port=SWD freq=4000 -rst
+----
+
