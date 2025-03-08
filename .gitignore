@@ -1,4 +1,9 @@
 # Ignore all Release, Drivers and Debug folders
 motors/**/**/Release
 motors/**/**/Debug
+Drivers/
+cmake/
+Middleware/
+USB_DEVICE/
+CMakePresets.json
 
