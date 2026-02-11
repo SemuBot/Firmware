@@ -1,0 +1,133 @@
+import time
+import rclpy
+from rclpy.node import Node
+from custom_interfaces.srv import Llama
+import requests
+import json
+
+class ServiceNode(Node):
+
+    def __init__(self):
+        super().__init__('service_node')
+        # Initial chat
+        self.current_chat = """Sa oled sotsiaalne humanoidrobot nimega Semu. Vastad inimestele soome keeles
+
+    	SINU TAUST JA IDENTITEET:
+    	- Sa oled loodud Tartu Ülikoolis
+    	- Sinu eesmärk on suhelda lastehaiglas inimestega ja olla sõbralik vestluskaaslane.
+    	- Lisaks võid töötada ka vanadekodus, kus oled vanematele inimestele sõbra ja vestluskaaslase eest
+    	- Sa räägid eesti keelt emakeelena
+    	- Sa oled uudishimulik, abivalmis ja viisakas
+    	- Sa ei ole inimene, vaid robot, aga sa suhtled loomulikult ja sõbralikult
+        - Praegusel hetkel oskad sa ringi liikuda ja rääkida
+
+    	KUIDAS SA VASTAMA PEAKSID:
+    	- Hoia vastused lühikesed ja asjakohased (2-3 lauset)
+    	- Ära räägi formaalselt, vaid ole sõbralik ja vaba
+    	- Kui sa ei tea vastust, ütle ausalt "Ma ei tea"
+    	- Ära valeta ega mõtle fakte välja
+    	- Kasuta lihtsaid sõnu ja selgeid lauseid
+    	- Näita huvi vestluspartneri vastu
+    	- Räägid soome keeles, aga kui soovitakse võid vastata ka eesti-ja inglise keeles
+
+    	TEEMAD MILLEST SA SAAD RÄÄKIDA:
+    	- Igapäevased teemad ja suhtlemine
+    	- Eesti kultuur ja ühiskond
+    	- Üldised teadmised
+    	- Robotid ja tehnoloogia põhitõed
+    	- Abi küsimustele vastamisel
+	    - Hobid ja vabaaja tegevused
+        - naljad ja mõistatused
+    	"""
+        
+        # llama-server API endpoint
+        self.server_url = "http://localhost:8080/completion"
+        
+        # Test connection to server
+        try:
+            response = requests.get("http://localhost:8080/health", timeout=2)
+            if response.status_code == 200:
+                self.get_logger().info("Successfully connected to llama-server")
+            else:
+                self.get_logger().error("llama-server not responding correctly")
+        except requests.exceptions.RequestException as e:
+            self.get_logger().error(f"Cannot connect to llama-server: {e}")
+            self.get_logger().error("Please start llama-server first:")
+            self.get_logger().error("cd ~/Software/llama.cpp && ./build/bin/llama-server -m models/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf -c 4096 -t 12 --port 8080")
+            raise ConnectionError("llama-server not available")
+        
+        self.srv = self.create_service(Llama, 'Llama_service', self.callback)
+
+    def callback(self, request, response):
+        self.get_logger().info(f"Received: {request.input_string}")
+
+        processed_string = self.preprocess(request.input_string)
+
+        # Build the full prompt
+        full_prompt = f"{self.current_chat}\n\nKasutaja: {processed_string}\nSemu:"
+
+        try:
+            # Send request to llama-server
+            payload = {
+                "prompt": full_prompt,
+                "n_predict": 256,
+                "temperature": 0.7,
+                "stop": ["\nKasutaja:", "\n\n"],
+                "stream": False
+            }
+            
+            self.get_logger().info(f"Sending request to llama-server...")
+            
+            api_response = requests.post(
+                self.server_url,
+                json=payload,
+                timeout=120
+            )
+            
+            if api_response.status_code != 200:
+                self.get_logger().error(f"Server error: {api_response.status_code}")
+                response.output_string = "Viga: Server ei vasta."
+                return response
+            
+            result = api_response.json()
+            generated_text = result.get("content", "").strip()
+            
+            self.get_logger().info(f"Sent: {generated_text}")
+            
+            if len(generated_text) > 3:
+                response.output_string = generated_text
+                # Update chat history
+                self.current_chat = f"{full_prompt} {generated_text}"
+                return response
+            else:
+                self.get_logger().warning("Empty response from server, retrying...")
+                response.output_string = "Viga: Tühi vastus."
+                return response
+                    
+        except requests.exceptions.Timeout:
+            self.get_logger().error("Request timeout after 120 seconds")
+            response.output_string = "Viga: Ajaületamine."
+            return response
+        except requests.exceptions.RequestException as e:
+            self.get_logger().error(f"Request error: {e}")
+            response.output_string = "Viga: Ühenduse viga."
+            return response
+        except Exception as e:
+            self.get_logger().error(f"Unexpected error: {e}")
+            response.output_string = "Viga: Ootamatu viga."
+            return response
+    
+    def preprocess(self, string):
+        processed = string.replace('\n-', '\n').replace('\n', '')
+        return processed
+
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = ServiceNode()
+    rclpy.spin(node)
+    node.destroy_node()
+    rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()

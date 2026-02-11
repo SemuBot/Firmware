@@ -2,3 +2,8 @@
 motors/**/**/Release
 motors/**/**/Debug
 
+build/
+install/
+log/
+.vscode/
+
