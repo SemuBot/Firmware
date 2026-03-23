@@ -1,0 +1,9 @@
+../Core/Src/amt232a.c:18:20:AMT232A_SSI_ClockPulse	3
+../Core/Src/amt232a.c:35:23:AMT232A_SSI_ReadBit	1
+../Core/Src/amt232a.c:39:9:AMT232A_Init	5
+../Core/Src/amt232a.c:71:19:AMT232A_Read	13
+../Core/Src/amt232a.c:152:19:AMT232A_ReadDeviceId	3
+../Core/Src/amt232a.c:163:7:AMT232A_GetAngle	2
+../Core/Src/amt232a.c:170:7:AMT232A_GetVelocity	2
+../Core/Src/amt232a.c:177:6:AMT232A_ResetDelta	2
+../Core/Src/amt232a.c:189:19:AMT232A_ReadAveraged	8

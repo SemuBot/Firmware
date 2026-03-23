@@ -1,0 +1,8 @@
+../Core/Src/freertos.c:117:6:vApplicationGetIdleTaskMemory	1
+../Core/Src/freertos.c:131:6:MX_FREERTOS_Init	1
+../Core/Src/freertos.c:168:6:StartDefaultTask	16
+../Core/Src/freertos.c:312:10:Read_SSI	7
+../Core/Src/freertos.c:420:6:StartControlTask	1
+../Core/Src/freertos.c:452:6:velocity_command_callback	2
+../Core/Src/freertos.c:466:6:joint_state_timer_callback	2
+../Core/Src/freertos.c:493:6:diagnostics_timer_callback	1

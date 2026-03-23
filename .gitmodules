@@ -1,0 +1,3 @@
+[submodule "wheelbase/micro_ros_stm32cubemx_utils"]
+	path = wheelbase/micro_ros_stm32cubemx_utils
+	url = https://github.com/micro-ROS/micro_ros_stm32cubemx_utils

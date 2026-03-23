@@ -1,0 +1,8 @@
+../Core/Src/ads131m03.c:11:9:ADS131M03_Init	16	static
+../Core/Src/ads131m03.c:27:19:ADS131M03_WriteRegister	24	static
+../Core/Src/ads131m03.c:38:19:ADS131M03_ReadRegister	40	static
+../Core/Src/ads131m03.c:55:19:ADS131M03_Start	24	static
+../Core/Src/ads131m03.c:73:19:ADS131M03_Stop	24	static
+../Core/Src/ads131m03.c:91:19:ADS131M03_ReadData	64	static
+../Core/Src/ads131m03.c:141:19:ADS131M03_ConvertToCurrent	32	static
+../Core/Src/ads131m03.c:156:6:ADS131M03_ResetDelta	16	static

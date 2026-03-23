@@ -1,2 +1,0 @@
-../Core/Src/cmd_vel.c:21:6:Receive_CmdVel	6
-../Core/Src/cmd_vel.c:54:6:Process_CmdVel	1
