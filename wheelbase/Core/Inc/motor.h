@@ -25,7 +25,6 @@ typedef struct {
     DRV8353_Handle *drv_handle;              // DRV8353 driver handle
 } motor_st;
 
-// Global motor instances
 extern motor_st motor1;
 extern motor_st motor2;
 extern motor_st motor3;
