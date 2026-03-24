@@ -1,6 +1,6 @@
 # Ignore all Release, Drivers and Debug folders
-motors/**/**/Release
-motors/**/**/Debug
+Release/
+Debug/
 
 build/
 install/
