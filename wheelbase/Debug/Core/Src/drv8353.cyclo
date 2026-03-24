@@ -1,8 +1,0 @@
-../Core/Src/drv8353.c:9:19:DRV8353_ReadRegister	4
-../Core/Src/drv8353.c:50:19:DRV8353_WriteRegister	4
-../Core/Src/drv8353.c:89:19:DRV8353_ReadFaults	2
-../Core/Src/drv8353.c:105:6:DRV8353_PrintFaults	9
-../Core/Src/drv8353.c:149:19:DRV8353_Enable	2
-../Core/Src/drv8353.c:167:19:DRV8353_Disable	2
-../Core/Src/drv8353.c:186:6:DRV8353_CalibrateCSAs	1
-../Core/Src/drv8353.c:211:6:DRV8353_RawSPITest	3
