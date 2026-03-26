@@ -1,344 +1,381 @@
-/* USER CODE BEGIN Header */
-/**
-  ******************************************************************************
-  * File Name          : freertos.c
-  * Description        : Code for freertos applications
-  ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2026 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
-  */
-/* USER CODE END Header */
-
 /* Includes ------------------------------------------------------------------*/
 #include "FreeRTOS.h"
 #include "task.h"
 #include "main.h"
 #include "cmsis_os.h"
 
-/* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "motor.h"
 #include "drv8353.h"
 #include "tim.h"
 #include "spi.h"
-/* USER CODE END Includes */
+#include "usbd_cdc_if.h"
+#include <math.h>
+#include <string.h>
+#include <stdio.h>
 
-/* Private typedef -----------------------------------------------------------*/
-/* USER CODE BEGIN PTD */
-#include "sensor_msgs/msg/joint_state.h"
-#include "diagnostic_msgs/msg/diagnostic_array.h"
-#include "diagnostic_msgs/msg/diagnostic_status.h"
-#include "diagnostic_msgs/msg/key_value.h"
-#include "rosidl_runtime_c/string_functions.h"
-#include "rosidl_runtime_c/primitives_sequence_functions.h"
 #include <rcl/rcl.h>
 #include <rcl/error_handling.h>
 #include <rclc/rclc.h>
 #include <rclc/executor.h>
-#include <std_msgs/msg/float32_multi_array.h>
+#include <geometry_msgs/msg/twist.h>
+#include <sensor_msgs/msg/joint_state.h>
 #include <rmw_microros/rmw_microros.h>
 #include "usb_cdc_transport.h"
-#include "usbd_cdc_if.h"
-#include <math.h>
-/* USER CODE END PTD */
+#include "rosidl_runtime_c/string_functions.h"
+#include "rosidl_runtime_c/primitives_sequence_functions.h"
+/* USER CODE END Includes */
+#include "diagnostic_msgs/msg/diagnostic_array.h"
+#include "diagnostic_msgs/msg/diagnostic_status.h"
+#include "diagnostic_msgs/msg/key_value.h"
 
-/* Private define ------------------------------------------------------------*/
+// Add with other micro-ROS variables
+rcl_publisher_t diagnostics_pub;
+rcl_timer_t diagnostics_timer;
+diagnostic_msgs__msg__DiagnosticArray diagnostics_msg;
 /* USER CODE BEGIN PD */
+#define CONTROL_LOOP_PERIOD_MS  5
+#define JOINT_STATE_PERIOD_MS   10
 
-#define CONTROL_LOOP_PERIOD_MS 1
-#define JOINT_STATE_PERIOD_MS 10
-#define DIAGNOSTICS_PERIOD_MS 100
+#define WHEEL_RADIUS            0.05f
+#define ROBOT_RADIUS            0.15f
 
+#define MOTOR1_ANGLE            0.0f
+#define MOTOR2_ANGLE            2.0944f
+#define MOTOR3_ANGLE            4.1888f
 
 char debug_msg[256];
 extern motor_st motor1, motor2, motor3;
 extern DRV8353_Handle drv_motor1, drv_motor2, drv_motor3;
 /* USER CODE END PD */
 
-/* Private macro -------------------------------------------------------------*/
-/* USER CODE BEGIN PM */
-void velocity_command_callback(const void * msgin);
-void joint_state_timer_callback(rcl_timer_t * timer, int64_t last_call_time);
-void diagnostics_timer_callback(rcl_timer_t * timer, int64_t last_call_time);
-/* USER CODE END PM */
-
-/* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
-volatile float target_velocities[3] = {0.0f, 0.0f, 0.0f};
-/* USER CODE END Variables */
+
+// cmd_vel from micro-ROS
+volatile float cmd_vx    = 0.0f;
+volatile float cmd_vy    = 0.0f;
+volatile float cmd_omega = 0.0f;
+volatile uint32_t cmd_last_tick = 0;
+#define CMD_TIMEOUT_MS 1000
+
+// PID state per motor
+typedef struct {
+    float kp, ki, kd;
+    float integral;
+    float prev_error;
+    float output_min, output_max;
+} PID_t;
+
+static PID_t pid[3];
+
+// Encoder state
+static uint16_t enc_raw[3]  = {0};
+static float    enc_deg[3]  = {0};
+static float    enc_vel[3]  = {0};
+static uint16_t enc_prev[3] = {0};
+
+// micro-ROS
 rcl_node_t node;
 rclc_support_t support;
+rcl_subscription_t cmd_vel_sub;
 rcl_publisher_t joint_state_pub;
-rcl_publisher_t diagnostics_pub;
-sensor_msgs__msg__JointState joint_state_msg;
-
-// Subscribe to velocity commands from ros2_control
-rcl_subscription_t velocity_cmd_sub;
 rclc_executor_t executor;
-std_msgs__msg__Float32MultiArray velocity_cmd_msg;
-
-// Timer handles
+sensor_msgs__msg__JointState joint_state_msg;
+geometry_msgs__msg__Twist cmd_vel_msg;
 rcl_timer_t joint_state_timer;
+rcl_publisher_t diagnostics_pub;
 rcl_timer_t diagnostics_timer;
-
-// Diagnostic messages
 diagnostic_msgs__msg__DiagnosticArray diagnostics_msg;
-char g_debug_msg[128] = "init";
 
+
+char g_debug_msg[128] = "init";
 /* USER CODE END Variables */
+
 osThreadId defaultTaskHandle;
 osThreadId controlTaskHandle;
-/* Private function prototypes -----------------------------------------------*/
-/* USER CODE BEGIN FunctionPrototypes */
-
-/* USER CODE END FunctionPrototypes */
 
 void StartDefaultTask(void const * argument);
 void StartControlTask(void const * argument);
 
 extern void MX_USB_DEVICE_Init(void);
-void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
+void MX_FREERTOS_Init(void);
 
-/* GetIdleTaskMemory prototype (linked to static allocation support) */
-void vApplicationGetIdleTaskMemory( StaticTask_t **ppxIdleTaskTCBBuffer, StackType_t **ppxIdleTaskStackBuffer, uint32_t *pulIdleTaskStackSize );
-
-/* USER CODE BEGIN GET_IDLE_TASK_MEMORY */
 static StaticTask_t xIdleTaskTCBBuffer;
 static StackType_t xIdleStack[configMINIMAL_STACK_SIZE];
-
-void vApplicationGetIdleTaskMemory( StaticTask_t **ppxIdleTaskTCBBuffer, StackType_t **ppxIdleTaskStackBuffer, uint32_t *pulIdleTaskStackSize )
+void diagnostics_timer_callback(rcl_timer_t *timer, int64_t last_call_time)
 {
-  *ppxIdleTaskTCBBuffer = &xIdleTaskTCBBuffer;
-  *ppxIdleTaskStackBuffer = &xIdleStack[0];
-  *pulIdleTaskStackSize = configMINIMAL_STACK_SIZE;
-  /* place for user code */
+    (void)timer;
+    (void)last_call_time;
+
+    uint32_t tick = HAL_GetTick();
+    diagnostics_msg.header.stamp.sec     = tick / 1000;
+    diagnostics_msg.header.stamp.nanosec = (tick % 1000) * 1000000;
+
+    rosidl_runtime_c__String__assign(
+        &diagnostics_msg.status.data[0].message, g_debug_msg);
+
+    rcl_publish(&diagnostics_pub, &diagnostics_msg, NULL);
 }
-/* USER CODE END GET_IDLE_TASK_MEMORY */
-
-/**
-  * @brief  FreeRTOS initialization
-  * @param  None
-  * @retval None
-  */
-void MX_FREERTOS_Init(void) {
-  /* USER CODE BEGIN Init */
-
-  /* USER CODE END Init */
-
-  /* USER CODE BEGIN RTOS_MUTEX */
-  /* add mutexes, ... */
-  /* USER CODE END RTOS_MUTEX */
-
-  /* USER CODE BEGIN RTOS_SEMAPHORES */
-  /* add semaphores, ... */
-  /* USER CODE END RTOS_SEMAPHORES */
-
-  /* USER CODE BEGIN RTOS_TIMERS */
-  /* start timers, add new ones, ... */
-  /* USER CODE END RTOS_TIMERS */
-
-  /* USER CODE BEGIN RTOS_QUEUES */
-  /* add queues, ... */
-  /* USER CODE END RTOS_QUEUES */
-
-  /* Create the thread(s) */
-  /* definition and creation of defaultTask */
-  //osThreadDef(defaultTask, StartDefaultTask, osPriorityNormal, 0, 256);
- // defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
-
-  osThreadDef(defaultTask, StartDefaultTask, osPriorityNormal, 0, 4000);
-  defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
-
-  /* definition and creation of controlTask */
-  osThreadDef(controlTask, StartControlTask, osPriorityNormal, 0, 256);
-  controlTaskHandle = osThreadCreate(osThread(controlTask), NULL);
-  /* USER CODE BEGIN RTOS_THREADS */
-  /* add threads, ... */
-  /* USER CODE END RTOS_THREADS */
-
-}
-void StartDefaultTask(void const * argument)
+void vApplicationGetIdleTaskMemory(StaticTask_t **ppxIdleTaskTCBBuffer,
+                                   StackType_t **ppxIdleTaskStackBuffer,
+                                   uint32_t *pulIdleTaskStackSize)
 {
+    *ppxIdleTaskTCBBuffer   = &xIdleTaskTCBBuffer;
+    *ppxIdleTaskStackBuffer = &xIdleStack[0];
+    *pulIdleTaskStackSize   = configMINIMAL_STACK_SIZE;
+}
+
+/* -----------------------------------------------------------------------
+ * Inverse kinematics: cmd_vel -> per-motor rad/s
+ * ----------------------------------------------------------------------- */
+static void InvKinematics(float vx, float vy, float omega, float vel_out[3])
+{
+    float angles[3] = {MOTOR1_ANGLE, MOTOR2_ANGLE, MOTOR3_ANGLE};
+    for (int i = 0; i < 3; i++) {
+        float tangential = vx * cosf(angles[i]) + vy * sinf(angles[i]) + omega * ROBOT_RADIUS;
+        vel_out[i] = tangential / WHEEL_RADIUS;
+    }
+}
+
+/* -----------------------------------------------------------------------
+ * PID init
+ * ----------------------------------------------------------------------- */
+static void PID_Init(PID_t *p, float kp, float ki, float kd,
+                     float out_min, float out_max)
+{
+    p->kp         = kp;
+    p->ki         = ki;
+    p->kd         = kd;
+    p->integral   = 0.0f;
+    p->prev_error = 0.0f;
+    p->output_min = out_min;
+    p->output_max = out_max;
+}
+
+/* -----------------------------------------------------------------------
+ * PID update
+ * ----------------------------------------------------------------------- */
+static float PID_Update(PID_t *p, float setpoint, float measured, float dt)
+{
+    float error = setpoint - measured;
+    p->integral += error * dt;
+
+    if (p->integral > p->output_max) p->integral = p->output_max;
+    if (p->integral < p->output_min) p->integral = p->output_min;
+
+    float derivative = (error - p->prev_error) / dt;
+    p->prev_error = error;
+
+    float output = p->kp * error + p->ki * p->integral + p->kd * derivative;
+
+    if (output > p->output_max) output = p->output_max;
+    if (output < p->output_min) output = p->output_min;
+
+    return output;
+}
+
+/* -----------------------------------------------------------------------
+ * Apply duty cycle [-1..1] to a motor
+ * ----------------------------------------------------------------------- */
+static void Motor_SetDuty(TIM_HandleTypeDef *htim, uint32_t channel,
+                          GPIO_TypeDef *dir_port, uint16_t dir_pin,
+                          GPIO_TypeDef *brake_port, uint16_t brake_pin,
+                          float duty)
+{
+    uint32_t arr = __HAL_TIM_GET_AUTORELOAD(htim);
+
+    if (fabsf(duty) < 0.01f) {
+        HAL_GPIO_WritePin(brake_port, brake_pin, GPIO_PIN_RESET);
+        __HAL_TIM_SET_COMPARE(htim, channel, 0);
+        return;
+    }
+
+    HAL_GPIO_WritePin(brake_port, brake_pin, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(dir_port, dir_pin,
+        duty >= 0.0f ? GPIO_PIN_SET : GPIO_PIN_RESET);
+
+    float clamped = fminf(fabsf(duty), 1.0f);
+    __HAL_TIM_SET_COMPARE(htim, channel, (uint32_t)(clamped * arr));
+}
+
+/* -----------------------------------------------------------------------
+ * SSI encoder read
+ * ----------------------------------------------------------------------- */
+uint16_t Read_SSI(GPIO_TypeDef *cs_port, uint16_t cs_pin)
+{
+    uint16_t raw = 0;
+
+    HAL_GPIO_WritePin(cs_port, cs_pin, GPIO_PIN_RESET);
+    for (volatile int i = 0; i < 36; i++) { __NOP(); }
+
+    for (int i = 16; i >= 0; i--) {
+        HAL_GPIO_WritePin(SSI_CLK_GPIO_Port, SSI_CLK_Pin, GPIO_PIN_RESET);
+        for (volatile int j = 0; j < 500; j++) { __NOP(); }
+        HAL_GPIO_WritePin(SSI_CLK_GPIO_Port, SSI_CLK_Pin, GPIO_PIN_SET);
+        for (volatile int j = 0; j < 500; j++) { __NOP(); }
+        if (HAL_GPIO_ReadPin(SSI_DATA_GPIO_Port, SSI_DATA_Pin) == GPIO_PIN_SET)
+            raw |= (1 << i);
+    }
+
+    HAL_GPIO_WritePin(cs_port, cs_pin, GPIO_PIN_SET);
+    for (volatile int i = 0; i < 500; i++) { __NOP(); }
+
+    raw >>= 1;
+    return raw & 0x3FFF;
+}
+
+/* -----------------------------------------------------------------------
+ * micro-ROS callbacks
+ * ----------------------------------------------------------------------- */
+void cmd_vel_callback(const void *msgin)
+{
+    const geometry_msgs__msg__Twist *msg =
+        (const geometry_msgs__msg__Twist *)msgin;
+
+    cmd_vx        = (float)msg->linear.x;
+    cmd_vy        = (float)msg->linear.y;
+    cmd_omega     = (float)msg->angular.z;
+    cmd_last_tick = HAL_GetTick();
+}
+
+void joint_state_timer_callback(rcl_timer_t *timer, int64_t last_call_time)
+{
+    (void)last_call_time;
+    if (timer == NULL) return;
+
+    uint32_t tick = HAL_GetTick();
+    joint_state_msg.header.stamp.sec     = tick / 1000;
+    joint_state_msg.header.stamp.nanosec = (tick % 1000) * 1000000;
+
+    // Position in degrees, velocity in deg/s
+    for (int i = 0; i < 3; i++) {
+        joint_state_msg.position.data[i] = (double)enc_deg[i];
+        joint_state_msg.velocity.data[i] = (double)enc_vel[i];
+        joint_state_msg.effort.data[i]   = 0.0;
+    }
+
+    rcl_publish(&joint_state_pub, &joint_state_msg, NULL);
+}
+
+/* -----------------------------------------------------------------------
+ * FreeRTOS init
+ * ----------------------------------------------------------------------- */
+void MX_FREERTOS_Init(void)
+{
+    osThreadDef(defaultTask, StartDefaultTask, osPriorityNormal, 0, 4000);
+    defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
+
+    osThreadDef(controlTask, StartControlTask, osPriorityAboveNormal, 0, 512);
+    controlTaskHandle = osThreadCreate(osThread(controlTask), NULL);
+}
+
+/* -----------------------------------------------------------------------
+ * Default task: micro-ROS init + executor spin
+ * ----------------------------------------------------------------------- */
+void StartDefaultTask(void const *argument)
+{
+    (void)argument;
     osDelay(2000);
 
-    /* --- Set transport --- */
+    // Set transport
     rmw_uros_set_custom_transport(
-        true,
-        NULL,
+        true, NULL,
         cubemx_transport_open,
         cubemx_transport_close,
         cubemx_transport_write,
         cubemx_transport_read);
 
     rcl_allocator_t allocator = rcl_get_default_allocator();
-    /* --- Wait for agent --- */
-    while (rmw_uros_ping_agent(100, 1) != RMW_RET_OK)
-    {
+
+    // Wait for agent
+    while (rmw_uros_ping_agent(100, 1) != RMW_RET_OK) {
         HAL_GPIO_TogglePin(debug_GPIO_Port, debug_Pin);
         osDelay(100);
     }
 
-    /* --- Init support --- */
-    if (rclc_support_init(&support, 0, NULL, &allocator) != RCL_RET_OK) {
+    // Init support
+    if (rclc_support_init(&support, 0, NULL, &allocator) != RCL_RET_OK)
         Error_Handler();
-    }
 
-
-    /* --- Create node --- */
-    if (rclc_node_init_default(&node, "motor_controller", "", &support) != RCL_RET_OK) {
+    // Create node
+    if (rclc_node_init_default(&node, "semubot_onboard", "", &support) != RCL_RET_OK)
         Error_Handler();
-    }
 
-    /* --- Init subscription for velocity commands--- */
+    // Subscribe to cmd_vel as Twist
     if (rclc_subscription_init_best_effort(
-            &velocity_cmd_sub,
-            &node,
-            ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Float32MultiArray),
-            "/hardware_interface/velocity_cmd") != RCL_RET_OK)
-    {
+            &cmd_vel_sub, &node,
+            ROSIDL_GET_MSG_TYPE_SUPPORT(geometry_msgs, msg, Twist),
+            "/cmd_vel") != RCL_RET_OK)
         Error_Handler();
-    }
 
+    // Init joint state message
     sensor_msgs__msg__JointState__init(&joint_state_msg);
-    if (!rosidl_runtime_c__String__Sequence__init(&joint_state_msg.name, 3)) {
-        Error_Handler();
-    }
+    rosidl_runtime_c__String__Sequence__init(&joint_state_msg.name, 3);
+    rosidl_runtime_c__double__Sequence__init(&joint_state_msg.position, 3);
+    rosidl_runtime_c__double__Sequence__init(&joint_state_msg.velocity, 3);
+    rosidl_runtime_c__double__Sequence__init(&joint_state_msg.effort, 3);
 
-    // Allocate memory for positions, velocities, efforts
-    if (!rosidl_runtime_c__double__Sequence__init(&joint_state_msg.position, 3)) {
-        Error_Handler();
-    }
-    if (!rosidl_runtime_c__double__Sequence__init(&joint_state_msg.velocity, 3)) {
-        Error_Handler();
-    }
-    if (!rosidl_runtime_c__double__Sequence__init(&joint_state_msg.effort, 3)) {
-        Error_Handler();
-    }
-
-    // Set joint names
     rosidl_runtime_c__String__assign(&joint_state_msg.name.data[0], "motor1_joint");
     rosidl_runtime_c__String__assign(&joint_state_msg.name.data[1], "motor2_joint");
     rosidl_runtime_c__String__assign(&joint_state_msg.name.data[2], "motor3_joint");
 
-    diagnostic_msgs__msg__DiagnosticArray__init(&diagnostics_msg);
-    if (!diagnostic_msgs__msg__DiagnosticStatus__Sequence__init(&diagnostics_msg.status, 1)) {
-        Error_Handler();
-    }
-
-    diagnostic_msgs__msg__DiagnosticStatus__init(&diagnostics_msg.status.data[0]);
-    diagnostics_msg.status.data[0].level = 0;
-    rosidl_runtime_c__String__assign(&diagnostics_msg.status.data[0].name, "__heartbeat__");
-    rosidl_runtime_c__String__assign(&diagnostics_msg.status.data[0].message, "System OK");
-    rosidl_runtime_c__String__assign(&diagnostics_msg.status.data[0].hardware_id, "wheelbase");
-
-    if (!diagnostic_msgs__msg__KeyValue__Sequence__init(&diagnostics_msg.status.data[0].values, 2)) {
-        Error_Handler();
-    }
-
-    for (int i = 0; i < 2; i++) {
-        diagnostic_msgs__msg__KeyValue__init(&diagnostics_msg.status.data[0].values.data[i]);
-    }
-
-    rosidl_runtime_c__String__assign(&diagnostics_msg.status.data[0].values.data[0].key, "motor_errors");
-    rosidl_runtime_c__String__assign(&diagnostics_msg.status.data[0].values.data[0].value, "0x00");
-    rosidl_runtime_c__String__assign(&diagnostics_msg.status.data[0].values.data[1].key, "uptime_ms");
-    rosidl_runtime_c__String__assign(&diagnostics_msg.status.data[0].values.data[1].value, "0");
-
-    /* --- Create publishers --- */
+    // Create joint state publisher
     if (rclc_publisher_init_default(
-            &joint_state_pub,
-            &node,
+            &joint_state_pub, &node,
             ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, JointState),
-            "motor_states") != RCL_RET_OK) {
+            "/motor_states") != RCL_RET_OK)
         Error_Handler();
-    }
+    // Init diagnostics message
+    diagnostic_msgs__msg__DiagnosticArray__init(&diagnostics_msg);
+    diagnostic_msgs__msg__DiagnosticStatus__Sequence__init(&diagnostics_msg.status, 1);
+    diagnostic_msgs__msg__DiagnosticStatus__init(&diagnostics_msg.status.data[0]);
+    rosidl_runtime_c__String__assign(&diagnostics_msg.status.data[0].name, "semubot");
+    rosidl_runtime_c__String__assign(&diagnostics_msg.status.data[0].message, "init");
+    rosidl_runtime_c__String__assign(&diagnostics_msg.status.data[0].hardware_id, "wheelbase");
+    diagnostic_msgs__msg__KeyValue__Sequence__init(&diagnostics_msg.status.data[0].values, 0);
 
+    // Create diagnostics publisher
     if (rclc_publisher_init_default(
-            &diagnostics_pub,
-            &node,
+            &diagnostics_pub, &node,
             ROSIDL_GET_MSG_TYPE_SUPPORT(diagnostic_msgs, msg, DiagnosticArray),
-            "diagnostics") != RCL_RET_OK) {
+            "/diagnostics") != RCL_RET_OK)
         Error_Handler();
-    }
 
-    /* --- Create timers --- */
+    // Create diagnostics timer at 100ms
     if (rclc_timer_init_default2(
-            &joint_state_timer,
-            &support,
+            &diagnostics_timer, &support,
+            RCL_MS_TO_NS(100),
+            diagnostics_timer_callback,
+            true) != RCL_RET_OK)
+        Error_Handler();
+    if (rclc_timer_init_default2(
+            &joint_state_timer, &support,
             RCL_MS_TO_NS(JOINT_STATE_PERIOD_MS),
             joint_state_timer_callback,
-            true) != RCL_RET_OK) {
+            true) != RCL_RET_OK)
         Error_Handler();
-    }
 
-    if (rclc_timer_init_default2(
-            &diagnostics_timer,
-            &support,
-            RCL_MS_TO_NS(DIAGNOSTICS_PERIOD_MS),
-            diagnostics_timer_callback,
-            true) != RCL_RET_OK) {
-        Error_Handler();
-    }
-
-    /* --- Setup executor --- */
     executor = rclc_executor_get_zero_initialized_executor();
-    rclc_executor_init(&executor, &support.context, 3, &allocator);  // 2 timers + 1 subscription
-
+    rclc_executor_init(&executor, &support.context, 3, &allocator);
+    rclc_executor_add_subscription(
+        &executor, &cmd_vel_sub, &cmd_vel_msg,
+        &cmd_vel_callback, ON_NEW_DATA);
     rclc_executor_add_timer(&executor, &joint_state_timer);
     rclc_executor_add_timer(&executor, &diagnostics_timer);
-    rosidl_runtime_c__float__Sequence__init(&velocity_cmd_msg.data, 3);
-    rclc_executor_add_subscription(
-        &executor,
-        &velocity_cmd_sub,
-        &velocity_cmd_msg,
-        &velocity_command_callback,
-        ON_NEW_DATA);
 
-    while(1) {
+    while (1) {
         rclc_executor_spin_some(&executor, RCL_MS_TO_NS(10));
-        osDelay(10);
+        osDelay(5);
     }
 }
 
-
-uint16_t Read_SSI(GPIO_TypeDef* cs_port, uint16_t cs_pin)
+/* -----------------------------------------------------------------------
+ * Control task: encoder read + inverse kinematics + PID + PWM
+ * ----------------------------------------------------------------------- */
+void StartControlTask(void const *argument)
 {
-    uint16_t raw = 0;
+    (void)argument;
 
-    HAL_GPIO_WritePin(cs_port, cs_pin, GPIO_PIN_RESET);
-    for(volatile int i = 0; i < 36; i++) { __NOP(); }
-
-    for (int i = 16; i >= 0; i--) {
-        HAL_GPIO_WritePin(SSI_CLK_GPIO_Port, SSI_CLK_Pin, GPIO_PIN_RESET);
-        for(volatile int j = 0; j < 500; j++) { __NOP(); }
-        HAL_GPIO_WritePin(SSI_CLK_GPIO_Port, SSI_CLK_Pin, GPIO_PIN_SET);
-        for(volatile int j = 0; j < 500; j++) { __NOP(); }
-        if (HAL_GPIO_ReadPin(SSI_DATA_GPIO_Port, SSI_DATA_Pin) == GPIO_PIN_SET) {
-            raw |= (1 << i);
-        }
-    }
-
-    HAL_GPIO_WritePin(cs_port, cs_pin, GPIO_PIN_SET);
-    for(volatile int i = 0; i < 500; i++) { __NOP(); }
-
-    raw >>= 1;
-
-    // Bypass parity - return raw 14-bit position directly
-    return raw & 0x3FFF;
-}
-
-
-/*
-void StartControlTask(void const * argument)
-{
     // Deselect all CS
     HAL_GPIO_WritePin(motor1_adc_GPIO_Port, motor1_adc_Pin, GPIO_PIN_SET);
     HAL_GPIO_WritePin(motor2_adc_GPIO_Port, motor2_adc_Pin, GPIO_PIN_SET);
@@ -350,172 +387,67 @@ void StartControlTask(void const * argument)
     HAL_GPIO_WritePin(cs_enc_2_GPIO_Port,   cs_enc_2_Pin,   GPIO_PIN_SET);
     HAL_GPIO_WritePin(cs_enc_3_GPIO_Port,   cs_enc_3_Pin,   GPIO_PIN_SET);
 
-    // Start PWM timers
+    // Start PWM
     __HAL_TIM_MOE_ENABLE(&htim1);
     HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
     HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
     HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
 
+    // Init PIDs
+    PID_Init(&pid[0], 0.01f, 0.001f, 0.0f, -1.0f, 1.0f);
+    PID_Init(&pid[1], 0.01f, 0.001f, 0.0f, -1.0f, 1.0f);
+    PID_Init(&pid[2], 0.01f, 0.001f, 0.0f, -1.0f, 1.0f);
 
-    uint32_t arr_m1 = __HAL_TIM_GET_AUTORELOAD(&htim1);
-    uint32_t arr_m2 = __HAL_TIM_GET_AUTORELOAD(&htim3);
-    uint32_t arr_m3 = __HAL_TIM_GET_AUTORELOAD(&htim4);
+    const float dt           = CONTROL_LOOP_PERIOD_MS / 1000.0f;
+    const float DEG_PER_TICK = 360.0f / 16384.0f;
 
-    const float MAX_DUTY = 0.30f;  // 20%
+    for (;;) {
+        // --- Read encoders ---
+        enc_raw[0] = Read_SSI(cs_enc_1_GPIO_Port, cs_enc_1_Pin);
+        enc_raw[1] = Read_SSI(cs_enc_2_GPIO_Port, cs_enc_2_Pin);
+        enc_raw[2] = Read_SSI(cs_enc_3_GPIO_Port, cs_enc_3_Pin);
 
-    for(;;) {
-    	float tv1 = (float)target_velocities[0];
-    	    float tv2 = (float)target_velocities[1];
-    	    float tv3 = (float)target_velocities[2];
+        for (int i = 0; i < 3; i++) {
+            enc_deg[i] = (float)enc_raw[i] * DEG_PER_TICK;
 
-    	    static float smooth1 = 0, smooth2 = 0, smooth3 = 0;
-    	    const float ramp = 0.05f;
-    	    smooth1 += (tv1 - smooth1) * ramp;
-    	    smooth2 += (tv2 - smooth2) * ramp;
-    	    smooth3 += (tv3 - smooth3) * ramp;
+            int16_t delta = (int16_t)enc_raw[i] - (int16_t)enc_prev[i];
+            if (delta >  8192) delta -= 16384;
+            if (delta < -8192) delta += 16384;
+            enc_vel[i]  = (float)delta * DEG_PER_TICK / dt;
+            enc_prev[i] = enc_raw[i];
+        }
 
-    	    float mv1 = smooth1;
-    	    float mv2 = smooth2;
-    	    float mv3 = smooth3;
-        // Motor 1
-        HAL_GPIO_WritePin(motor1.dir_port, motor1.dir_pin,
-            mv1 >= 0 ? GPIO_PIN_SET : GPIO_PIN_RESET);
-        HAL_GPIO_WritePin(motor1_nBRAKE_GPIO_Port, motor1_nBRAKE_Pin,
-            fabsf(mv1) > 0.01f ? GPIO_PIN_SET : GPIO_PIN_RESET);
-        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1,
-            (uint32_t)(fminf(fabsf(mv1), MAX_DUTY) * arr_m1));
+        // Convert deg/s to rad/s
+        float meas_rads[3];
+        for (int i = 0; i < 3; i++)
+            meas_rads[i] = enc_vel[i] * (float)M_PI / 180.0f;
 
-        // Motor 2
-        HAL_GPIO_WritePin(motor2.dir_port, motor2.dir_pin,
-            mv2 >= 0 ? GPIO_PIN_SET : GPIO_PIN_RESET);
-        HAL_GPIO_WritePin(motor2_nBRAKE_GPIO_Port, motor2_nBRAKE_Pin,
-            fabsf(mv2) > 0.01f ? GPIO_PIN_SET : GPIO_PIN_RESET);
-        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1,
-            (uint32_t)(fminf(fabsf(mv2), MAX_DUTY) * arr_m2));
+        // --- Inverse kinematics ---
+        float vel_target[3] = {0};
+        uint32_t now = HAL_GetTick();
+        if (now - cmd_last_tick < CMD_TIMEOUT_MS) {
+            InvKinematics(cmd_vx, cmd_vy, cmd_omega, vel_target);
+        }
 
-        // Motor 3
-        HAL_GPIO_WritePin(motor3.dir_port, motor3.dir_pin,
-            mv3 >= 0 ? GPIO_PIN_SET : GPIO_PIN_RESET);
-        HAL_GPIO_WritePin(motor3_nBRAKE_GPIO_Port, motor3_nBRAKE_Pin,
-            fabsf(mv3) > 0.01f ? GPIO_PIN_SET : GPIO_PIN_RESET);
-        __HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_1,
-            (uint32_t)(fminf(fabsf(mv3), MAX_DUTY) * arr_m3));
-
-        uint16_t fault1, fault2, fault3;
-        DRV8353_ReadRegister(&drv_motor1, DRV8353_REG_FAULT_STATUS_1, &fault1);
-        DRV8353_ReadRegister(&drv_motor2, DRV8353_REG_FAULT_STATUS_1, &fault2);
-        DRV8353_ReadRegister(&drv_motor3, DRV8353_REG_FAULT_STATUS_1, &fault3);
-
+        // --- PID + output ---
+        float duty[3];
+        for (int i = 0; i < 3; i++)
+        	duty[i] = vel_target[i] / 5.0f;
+        	//duty[i] = PID_Update(&pid[i], vel_target[i], meas_rads[i], dt);
         snprintf(g_debug_msg, sizeof(g_debug_msg),
-                    "V:%.2f %.2f %.2f F:%04X %04X %04X CCR:%lu %lu %lu",
-                    mv1, mv2, mv3, fault1, fault2, fault3,
-                    __HAL_TIM_GET_COMPARE(&htim1, TIM_CHANNEL_1),
-                    __HAL_TIM_GET_COMPARE(&htim3, TIM_CHANNEL_1),
-                    __HAL_TIM_GET_COMPARE(&htim4, TIM_CHANNEL_1));
+            "T:%.2f %.2f %.2f D:%.2f %.2f %.2f",
+            vel_target[0], vel_target[1], vel_target[2],
+            duty[0], duty[1], duty[2]);
+        Motor_SetDuty(&htim1, TIM_CHANNEL_1,
+            motor1.dir_port, motor1.dir_pin,
+            motor1_nBRAKE_GPIO_Port, motor1_nBRAKE_Pin, duty[0]);
+        Motor_SetDuty(&htim3, TIM_CHANNEL_1,
+            motor2.dir_port, motor2.dir_pin,
+            motor2_nBRAKE_GPIO_Port, motor2_nBRAKE_Pin, duty[1]);
+        Motor_SetDuty(&htim4, TIM_CHANNEL_1,
+            motor3.dir_port, motor3.dir_pin,
+            motor3_nBRAKE_GPIO_Port, motor3_nBRAKE_Pin, duty[2]);
 
-                osDelay(10);
+        osDelay(CONTROL_LOOP_PERIOD_MS);
     }
 }
-*/
-void StartControlTask(void const * argument)
-{
-    // Deselect all CS
-    HAL_GPIO_WritePin(motor1_adc_GPIO_Port, motor1_adc_Pin, GPIO_PIN_SET);
-    HAL_GPIO_WritePin(motor2_adc_GPIO_Port, motor2_adc_Pin, GPIO_PIN_SET);
-    HAL_GPIO_WritePin(motor3_adc_GPIO_Port, motor3_adc_Pin, GPIO_PIN_SET);
-    HAL_GPIO_WritePin(motor1_Cs_GPIO_Port,  motor1_Cs_Pin,  GPIO_PIN_SET);
-    HAL_GPIO_WritePin(motor2_Cs_GPIO_Port,  motor2_Cs_Pin,  GPIO_PIN_SET);
-    HAL_GPIO_WritePin(motor3_Cs_GPIO_Port,  motor3_Cs_Pin,  GPIO_PIN_SET);
-    HAL_GPIO_WritePin(cs_enc_1_GPIO_Port, cs_enc_1_Pin, GPIO_PIN_SET);
-    HAL_GPIO_WritePin(cs_enc_2_GPIO_Port, cs_enc_2_Pin, GPIO_PIN_SET);
-    HAL_GPIO_WritePin(cs_enc_3_GPIO_Port, cs_enc_3_Pin, GPIO_PIN_SET);
-
-
-    for(;;) {
-    	uint16_t enc1 = Read_SSI(cs_enc_1_GPIO_Port, cs_enc_1_Pin);
-    	uint16_t enc2 = Read_SSI(cs_enc_2_GPIO_Port, cs_enc_2_Pin);
-    	uint16_t enc3 = Read_SSI(cs_enc_3_GPIO_Port, cs_enc_3_Pin);
-
-    	float deg1 = (float)enc1 * (360.0f / 16384.0f);
-    	float deg2 = (float)enc2 * (360.0f / 16384.0f);
-    	float deg3 = (float)enc3 * (360.0f / 16384.0f);
-
-    	snprintf(g_debug_msg, sizeof(g_debug_msg),
-    	    "E1:%u(%.1f) E2:%u(%.1f) E3:%u(%.1f)",
-    	    enc1, deg1, enc2, deg2, enc3, deg3);
-
-        osDelay(100);
-    }
-}
-/* Private application code --------------------------------------------------*/
-/* USER CODE BEGIN Application */
-void velocity_command_callback(const void * msgin)
-{
-
-    const std_msgs__msg__Float32MultiArray * msg =
-        (const std_msgs__msg__Float32MultiArray *)msgin;
-
-    if (msg->data.size >= 3) {
-        target_velocities[0] = msg->data.data[0];
-        target_velocities[1] = msg->data.data[1];
-        target_velocities[2] = msg->data.data[2];
-    }
-}
-
-
-void joint_state_timer_callback(rcl_timer_t * timer, int64_t last_call_time)
-{
-    (void)last_call_time;
-    if (timer != NULL) {
-        uint32_t tick = HAL_GetTick();
-        joint_state_msg.header.stamp.sec = tick / 1000;
-        joint_state_msg.header.stamp.nanosec = (tick % 1000) * 1000000;
-
-        // Publish 0 until encoders work
-        joint_state_msg.position.data[0] = 0.0;
-        joint_state_msg.position.data[1] = 0.0;
-        joint_state_msg.position.data[2] = 0.0;
-
-        joint_state_msg.velocity.data[0] = (float)target_velocities[0];
-        joint_state_msg.velocity.data[1] = (float)target_velocities[1];
-        joint_state_msg.velocity.data[2] = (float)target_velocities[2];
-
-        joint_state_msg.effort.data[0] = 0.0;
-        joint_state_msg.effort.data[1] = 0.0;
-        joint_state_msg.effort.data[2] = 0.0;
-
-        rcl_publish(&joint_state_pub, &joint_state_msg, NULL);
-    }
-}
-
-
-
-void diagnostics_timer_callback(rcl_timer_t * timer, int64_t last_call_time)
-{
-    (void)timer;
-    (void)last_call_time;
-
-    uint32_t uptime_ms = HAL_GetTick();
-    uint16_t motor_errors = 0;
-
-    char buffer[32];
-    snprintf(buffer, sizeof(buffer), "0x%04X", motor_errors);
-    rosidl_runtime_c__String__assign(&diagnostics_msg.status.data[0].values.data[0].value, buffer);
-
-    snprintf(buffer, sizeof(buffer), "%lu", uptime_ms);
-    rosidl_runtime_c__String__assign(&diagnostics_msg.status.data[0].values.data[1].value, buffer);
-
-
-    rosidl_runtime_c__String__assign(&diagnostics_msg.status.data[0].message, g_debug_msg);
-
-
-    uint32_t tick = HAL_GetTick();
-    diagnostics_msg.header.stamp.sec = tick / 1000;
-    diagnostics_msg.header.stamp.nanosec = (tick % 1000) * 1000000;
-
-    rcl_ret_t ret = rcl_publish(&diagnostics_pub, &diagnostics_msg, NULL);
-    (void)ret;
-}
-
-/* USER CODE END Application */
-
