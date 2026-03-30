@@ -36,6 +36,7 @@ diagnostic_msgs__msg__DiagnosticArray diagnostics_msg;
 /* USER CODE BEGIN PD */
 #define CONTROL_LOOP_PERIOD_MS  5
 #define JOINT_STATE_PERIOD_MS   10
+#define DIAGNOSTICS_PERIOD_MS 100
 
 #define WHEEL_RADIUS            0.05f
 #define ROBOT_RADIUS            0.15f
@@ -102,6 +103,22 @@ void MX_FREERTOS_Init(void);
 
 static StaticTask_t xIdleTaskTCBBuffer;
 static StackType_t xIdleStack[configMINIMAL_STACK_SIZE];
+
+
+
+void uros_fini_all(void)
+{
+    rcl_publisher_fini(&joint_state_pub, &node);
+    rcl_publisher_fini(&diagnostics_pub, &node);
+
+    rcl_timer_fini(&joint_state_timer);
+    rcl_timer_fini(&diagnostics_timer);
+
+    rclc_executor_fini(&executor);
+    rcl_node_fini(&node);
+    rclc_support_fini(&support);
+}
+
 void diagnostics_timer_callback(rcl_timer_t *timer, int64_t last_call_time)
 {
     (void)timer;
@@ -287,85 +304,124 @@ void StartDefaultTask(void const *argument)
 
     rcl_allocator_t allocator = rcl_get_default_allocator();
 
-    // Wait for agent
-    while (rmw_uros_ping_agent(100, 1) != RMW_RET_OK) {
-        HAL_GPIO_TogglePin(debug_GPIO_Port, debug_Pin);
-        osDelay(100);
-    }
+    for (;;) {
+        // Wait for agent — slow blink
+        while (rmw_uros_ping_agent(100, 1) != RMW_RET_OK) {
+            HAL_GPIO_TogglePin(debug_GPIO_Port, debug_Pin);
+            osDelay(500);
+        }
 
-    // Init support
-    if (rclc_support_init(&support, 0, NULL, &allocator) != RCL_RET_OK)
-        Error_Handler();
+        HAL_GPIO_WritePin(debug_GPIO_Port, debug_Pin, GPIO_PIN_SET);
 
-    // Create node
-    if (rclc_node_init_default(&node, "semubot_onboard", "", &support) != RCL_RET_OK)
-        Error_Handler();
+        // Initialize micro-ROS
+        if (rclc_support_init(&support, 0, NULL, &allocator) != RCL_RET_OK)
+            Error_Handler();
 
-    // Subscribe to cmd_vel as Twist
-    if (rclc_subscription_init_best_effort(
-            &cmd_vel_sub, &node,
-            ROSIDL_GET_MSG_TYPE_SUPPORT(geometry_msgs, msg, Twist),
-            "/cmd_vel") != RCL_RET_OK)
-        Error_Handler();
+        if (rclc_node_init_default(&node, "semubot_onboard", "", &support) != RCL_RET_OK)
+            Error_Handler();
 
-    // Init joint state message
-    sensor_msgs__msg__JointState__init(&joint_state_msg);
-    rosidl_runtime_c__String__Sequence__init(&joint_state_msg.name, 3);
-    rosidl_runtime_c__double__Sequence__init(&joint_state_msg.position, 3);
-    rosidl_runtime_c__double__Sequence__init(&joint_state_msg.velocity, 3);
-    rosidl_runtime_c__double__Sequence__init(&joint_state_msg.effort, 3);
+        // Subscribe to cmd_vel as Twist
+        if (rclc_subscription_init_best_effort(
+                &cmd_vel_sub, &node,
+                ROSIDL_GET_MSG_TYPE_SUPPORT(geometry_msgs, msg, Twist),
+                "/cmd_vel") != RCL_RET_OK)
+            Error_Handler();
 
-    rosidl_runtime_c__String__assign(&joint_state_msg.name.data[0], "motor1_joint");
-    rosidl_runtime_c__String__assign(&joint_state_msg.name.data[1], "motor2_joint");
-    rosidl_runtime_c__String__assign(&joint_state_msg.name.data[2], "motor3_joint");
+        // Init joint state message
+        sensor_msgs__msg__JointState__init(&joint_state_msg);
+        rosidl_runtime_c__String__Sequence__init(&joint_state_msg.name, 3);
+        rosidl_runtime_c__double__Sequence__init(&joint_state_msg.position, 3);
+        rosidl_runtime_c__double__Sequence__init(&joint_state_msg.velocity, 3);
+        rosidl_runtime_c__double__Sequence__init(&joint_state_msg.effort, 3);
 
-    // Create joint state publisher
-    if (rclc_publisher_init_default(
-            &joint_state_pub, &node,
-            ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, JointState),
-            "/motor_states") != RCL_RET_OK)
-        Error_Handler();
-    // Init diagnostics message
-    diagnostic_msgs__msg__DiagnosticArray__init(&diagnostics_msg);
-    diagnostic_msgs__msg__DiagnosticStatus__Sequence__init(&diagnostics_msg.status, 1);
-    diagnostic_msgs__msg__DiagnosticStatus__init(&diagnostics_msg.status.data[0]);
-    rosidl_runtime_c__String__assign(&diagnostics_msg.status.data[0].name, "semubot");
-    rosidl_runtime_c__String__assign(&diagnostics_msg.status.data[0].message, "init");
-    rosidl_runtime_c__String__assign(&diagnostics_msg.status.data[0].hardware_id, "wheelbase");
-    diagnostic_msgs__msg__KeyValue__Sequence__init(&diagnostics_msg.status.data[0].values, 0);
+        rosidl_runtime_c__String__assign(&joint_state_msg.name.data[0], "motor1_joint");
+        rosidl_runtime_c__String__assign(&joint_state_msg.name.data[1], "motor2_joint");
+        rosidl_runtime_c__String__assign(&joint_state_msg.name.data[2], "motor3_joint");
 
-    // Create diagnostics publisher
-    if (rclc_publisher_init_default(
-            &diagnostics_pub, &node,
-            ROSIDL_GET_MSG_TYPE_SUPPORT(diagnostic_msgs, msg, DiagnosticArray),
-            "/diagnostics") != RCL_RET_OK)
-        Error_Handler();
+        // Create joint state publisher
+        if (rclc_publisher_init_default(
+                &joint_state_pub, &node,
+                ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, JointState),
+                "/motor_states") != RCL_RET_OK)
+            Error_Handler();
 
-    // Create diagnostics timer at 100ms
-    if (rclc_timer_init_default2(
-            &diagnostics_timer, &support,
-            RCL_MS_TO_NS(100),
-            diagnostics_timer_callback,
-            true) != RCL_RET_OK)
-        Error_Handler();
-    if (rclc_timer_init_default2(
-            &joint_state_timer, &support,
-            RCL_MS_TO_NS(JOINT_STATE_PERIOD_MS),
-            joint_state_timer_callback,
-            true) != RCL_RET_OK)
-        Error_Handler();
+        // Init diagnostics message
+        diagnostic_msgs__msg__DiagnosticArray__init(&diagnostics_msg);
+        diagnostic_msgs__msg__DiagnosticStatus__Sequence__init(&diagnostics_msg.status, 1);
+        diagnostic_msgs__msg__DiagnosticStatus__init(&diagnostics_msg.status.data[0]);
+        rosidl_runtime_c__String__assign(&diagnostics_msg.status.data[0].name, "semubot");
+        rosidl_runtime_c__String__assign(&diagnostics_msg.status.data[0].message, "System OK");
+        rosidl_runtime_c__String__assign(&diagnostics_msg.status.data[0].hardware_id, "wheelbase");
+        diagnostic_msgs__msg__KeyValue__Sequence__init(&diagnostics_msg.status.data[0].values, 2);
+        for (int i = 0; i < 2; i++)
+            diagnostic_msgs__msg__KeyValue__init(&diagnostics_msg.status.data[0].values.data[i]);
+        rosidl_runtime_c__String__assign(&diagnostics_msg.status.data[0].values.data[0].key, "motor_errors");
+        rosidl_runtime_c__String__assign(&diagnostics_msg.status.data[0].values.data[0].value, "0x00");
+        rosidl_runtime_c__String__assign(&diagnostics_msg.status.data[0].values.data[1].key, "uptime_ms");
+        rosidl_runtime_c__String__assign(&diagnostics_msg.status.data[0].values.data[1].value, "0");
 
-    executor = rclc_executor_get_zero_initialized_executor();
-    rclc_executor_init(&executor, &support.context, 3, &allocator);
-    rclc_executor_add_subscription(
-        &executor, &cmd_vel_sub, &cmd_vel_msg,
-        &cmd_vel_callback, ON_NEW_DATA);
-    rclc_executor_add_timer(&executor, &joint_state_timer);
-    rclc_executor_add_timer(&executor, &diagnostics_timer);
+        // Create diagnostics publisher
+        if (rclc_publisher_init_default(
+                &diagnostics_pub, &node,
+                ROSIDL_GET_MSG_TYPE_SUPPORT(diagnostic_msgs, msg, DiagnosticArray),
+                "/diagnostics") != RCL_RET_OK)
+            Error_Handler();
 
-    while (1) {
-        rclc_executor_spin_some(&executor, RCL_MS_TO_NS(10));
-        osDelay(5);
+        // Create timers
+        if (rclc_timer_init_default2(
+                &joint_state_timer, &support,
+                RCL_MS_TO_NS(JOINT_STATE_PERIOD_MS),
+                joint_state_timer_callback,
+                true) != RCL_RET_OK)
+            Error_Handler();
+
+        if (rclc_timer_init_default2(
+                &diagnostics_timer, &support,
+                RCL_MS_TO_NS(DIAGNOSTICS_PERIOD_MS),
+                diagnostics_timer_callback,
+                true) != RCL_RET_OK)
+            Error_Handler();
+
+        // Executor
+        executor = rclc_executor_get_zero_initialized_executor();
+        rclc_executor_init(&executor, &support.context, 3, &allocator);
+        rclc_executor_add_subscription(&executor, &cmd_vel_sub, &cmd_vel_msg,
+                                      &cmd_vel_callback, ON_NEW_DATA);
+        rclc_executor_add_timer(&executor, &joint_state_timer);
+        rclc_executor_add_timer(&executor, &diagnostics_timer);
+
+        // Ping agent every 2 seconds
+        uint32_t last_ping = HAL_GetTick();
+        bool connected = true;
+
+        while (connected) {
+            if (HAL_GetTick() - last_ping > 2000) {
+                last_ping = HAL_GetTick();
+                if (rmw_uros_ping_agent(100, 1) != RMW_RET_OK) {
+                    connected = false;
+                }
+            }
+            rclc_executor_spin_some(&executor, RCL_MS_TO_NS(5));
+            osDelay(10);
+        }
+
+        // Connection lost — stop motors and blink
+        Motor_SetDuty(&htim1, TIM_CHANNEL_1,
+            motor1.dir_port, motor1.dir_pin,
+            motor1_nBRAKE_GPIO_Port, motor1_nBRAKE_Pin, 0.0f);
+        Motor_SetDuty(&htim3, TIM_CHANNEL_1,
+            motor2.dir_port, motor2.dir_pin,
+            motor2_nBRAKE_GPIO_Port, motor2_nBRAKE_Pin, 0.0f);
+        Motor_SetDuty(&htim4, TIM_CHANNEL_1,
+            motor3.dir_port, motor3.dir_pin,
+            motor3_nBRAKE_GPIO_Port, motor3_nBRAKE_Pin, 0.0f);
+
+        HAL_GPIO_WritePin(debug_GPIO_Port, debug_Pin, GPIO_PIN_RESET);
+
+        // Clean up
+        uros_fini_all();
+
+        osDelay(500);
     }
 }
 
