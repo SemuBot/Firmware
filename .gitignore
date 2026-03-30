@@ -1,6 +1,6 @@
 # Ignore all Release, Drivers and Debug folders
-Release/
-Debug/
+wheelbase/Release/
+wheelbase/Debug/
 
 build/
 install/
