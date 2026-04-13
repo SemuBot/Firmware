@@ -251,7 +251,7 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef* timHandle)
 
     __HAL_RCC_GPIOA_CLK_ENABLE();
     /**TIM3 GPIO Configuration
-    PA6     ------> TIM3_CH1
+    PC6     ------> TIM3_CH1
     */
     GPIO_InitStruct.Pin = motor2_pwm_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
