@@ -180,18 +180,16 @@ void MX_FREERTOS_Init(void) {
 
 void uros_fini_all(void)
 {
-    rcl_subscription_fini(&velocity_cmd_sub, &node);
-    rcl_publisher_fini(&joint_state_pub, &node);
-    rcl_publisher_fini(&diagnostics_pub, &node);
-
-    rcl_timer_fini(&joint_state_timer);
-    rcl_timer_fini(&diagnostics_timer);
-
-    rclc_executor_fini(&executor);
-    rcl_node_fini(&node);
+    rcl_ret_t ret; // Suppressing compiler warnings
+    ret = rcl_subscription_fini(&velocity_cmd_sub, &node); (void)ret;
+    ret = rcl_publisher_fini(&joint_state_pub, &node);     (void)ret;
+    ret = rcl_publisher_fini(&diagnostics_pub, &node);     (void)ret;
+    ret = rcl_timer_fini(&joint_state_timer);              (void)ret;
+    ret = rcl_timer_fini(&diagnostics_timer);              (void)ret;
+    ret = rclc_executor_fini(&executor);                   (void)ret;
+    ret = rcl_node_fini(&node);                            (void)ret;
     rclc_support_fini(&support);
 }
-
 
 
 void StartDefaultTask(void const *argument)
@@ -323,7 +321,6 @@ uint16_t Read_SSI(GPIO_TypeDef* cs_port, uint16_t cs_pin,
 }
 
 
-
 void StartControlTask(void const * argument)
 {
     // Deselect all CS
@@ -343,138 +340,54 @@ void StartControlTask(void const * argument)
     HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
     HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
 
-
     uint32_t arr_m1 = __HAL_TIM_GET_AUTORELOAD(&htim1);
     uint32_t arr_m2 = __HAL_TIM_GET_AUTORELOAD(&htim3);
     uint32_t arr_m3 = __HAL_TIM_GET_AUTORELOAD(&htim4);
 
-    const float MAX_DUTY = 0.30f;
-	const float COUNTS_PER_REV = 16384.0f;
-	const float DT = 0.001f;  // 1ms control loop
-	const float TWO_PI = 2.0f * (float)M_PI;
+    const float MAX_DUTY      = 0.30f;
+    const float COUNTS_PER_REV = 16384.0f;
+    const float DT            = 0.001f;
+    const float TWO_PI        = 2.0f * (float)M_PI;
 
-	// Prime previous raw values to avoid a spike on first tick
-	enc[0].prev_raw = Read_SSI(cs_enc_1_GPIO_Port, cs_enc_1_Pin, enc1_data_GPIO_Port, enc1_data_Pin);
-	enc[1].prev_raw = Read_SSI(cs_enc_2_GPIO_Port, cs_enc_2_Pin, enc2_data_GPIO_Port, enc2_data_Pin);
-	enc[2].prev_raw = Read_SSI(cs_enc_3_GPIO_Port, cs_enc_3_Pin, enc3_data_GPIO_Port, enc3_data_Pin);
-	uint8_t reset_tx[3] = { 0x00, 0x11, 0x00 };  // RESET command
-	uint8_t wakeup_tx[3] = { 0x00, 0x33, 0x00 };
-	uint8_t dummy_rx[3];
-
-	HAL_GPIO_WritePin(motor1_adc_GPIO_Port, motor1_adc_Pin, GPIO_PIN_RESET);
-	HAL_SPI_TransmitReceive(&hspi1, reset_tx, dummy_rx, 3, 10);
-	HAL_GPIO_WritePin(motor1_adc_GPIO_Port, motor1_adc_Pin, GPIO_PIN_SET);
-	HAL_Delay(10);
-
-	HAL_GPIO_WritePin(motor2_adc_GPIO_Port, motor2_adc_Pin, GPIO_PIN_RESET);
-	HAL_SPI_TransmitReceive(&hspi1, reset_tx, dummy_rx, 3, 10);
-	HAL_GPIO_WritePin(motor2_adc_GPIO_Port, motor2_adc_Pin, GPIO_PIN_SET);
-	HAL_Delay(10);
-
-	HAL_GPIO_WritePin(motor3_adc_GPIO_Port, motor3_adc_Pin, GPIO_PIN_RESET);
-	HAL_SPI_TransmitReceive(&hspi1, reset_tx, dummy_rx, 3, 10);
-	HAL_GPIO_WritePin(motor3_adc_GPIO_Port, motor3_adc_Pin, GPIO_PIN_SET);
-	HAL_Delay(10);
-	HAL_GPIO_WritePin(motor1_adc_GPIO_Port, motor1_adc_Pin, GPIO_PIN_RESET);
-	HAL_SPI_TransmitReceive(&hspi1, reset_tx, dummy_rx, 3, 10);
-	HAL_GPIO_WritePin(motor1_adc_GPIO_Port, motor1_adc_Pin, GPIO_PIN_SET);
-	HAL_Delay(10);
-	HAL_GPIO_WritePin(motor1_adc_GPIO_Port, motor1_adc_Pin, GPIO_PIN_RESET);
-	HAL_SPI_TransmitReceive(&hspi1, wakeup_tx, dummy_rx, 3, 10);
-	HAL_GPIO_WritePin(motor1_adc_GPIO_Port, motor1_adc_Pin, GPIO_PIN_SET);
-	HAL_Delay(5);
-
-	// ADC2
-	HAL_GPIO_WritePin(motor2_adc_GPIO_Port, motor2_adc_Pin, GPIO_PIN_RESET);
-	HAL_SPI_TransmitReceive(&hspi1, reset_tx, dummy_rx, 3, 10);
-	HAL_GPIO_WritePin(motor2_adc_GPIO_Port, motor2_adc_Pin, GPIO_PIN_SET);
-	HAL_Delay(10);
-	HAL_GPIO_WritePin(motor2_adc_GPIO_Port, motor2_adc_Pin, GPIO_PIN_RESET);
-	HAL_SPI_TransmitReceive(&hspi1, wakeup_tx, dummy_rx, 3, 10);
-	HAL_GPIO_WritePin(motor2_adc_GPIO_Port, motor2_adc_Pin, GPIO_PIN_SET);
-	HAL_Delay(5);
-
-	// ADC3
-	HAL_GPIO_WritePin(motor3_adc_GPIO_Port, motor3_adc_Pin, GPIO_PIN_RESET);
-	HAL_SPI_TransmitReceive(&hspi1, reset_tx, dummy_rx, 3, 10);
-	HAL_GPIO_WritePin(motor3_adc_GPIO_Port, motor3_adc_Pin, GPIO_PIN_SET);
-	HAL_Delay(10);
-	HAL_GPIO_WritePin(motor3_adc_GPIO_Port, motor3_adc_Pin, GPIO_PIN_RESET);
-	HAL_SPI_TransmitReceive(&hspi1, wakeup_tx, dummy_rx, 3, 10);
-	HAL_GPIO_WritePin(motor3_adc_GPIO_Port, motor3_adc_Pin, GPIO_PIN_SET);
-	HAL_Delay(5);
-
-    HAL_GPIO_WritePin(motor2_adc_GPIO_Port, motor2_adc_Pin, GPIO_PIN_SET);
+    // Prime encoders
+    enc[0].prev_raw = Read_SSI(cs_enc_1_GPIO_Port, cs_enc_1_Pin, enc1_data_GPIO_Port, enc1_data_Pin);
+    enc[1].prev_raw = Read_SSI(cs_enc_2_GPIO_Port, cs_enc_2_Pin, enc2_data_GPIO_Port, enc2_data_Pin);
+    enc[2].prev_raw = Read_SSI(cs_enc_3_GPIO_Port, cs_enc_3_Pin, enc3_data_GPIO_Port, enc3_data_Pin);
 
 
-	for (;;)
-	{
-		// --- Read encoders ---
 
-		uint8_t adc_tx[12] = {0};
-		uint8_t adc_rx[12] = {0};
+    for (;;)
+    {
+        // --- Command timeout ---
+        if (HAL_GetTick() - last_cmd_time > CMD_TIMEOUT_MS) {
+            target_velocities[0] = 0.0f;
+            target_velocities[1] = 0.0f;
+            target_velocities[2] = 0.0f;
+        }
 
-		const float ADC_SCALE = 1.2f / 8388608.0f;   // V per LSB
-		const float I_SCALE   = 1.0f / (0.01f * 5.0f); // A per V at SOx
 
-		GPIO_TypeDef* adc_cs_ports[3] = { motor1_adc_GPIO_Port, motor2_adc_GPIO_Port, motor3_adc_GPIO_Port };
-		uint16_t      adc_cs_pins[3]  = { motor1_adc_Pin,       motor2_adc_Pin,       motor3_adc_Pin       };
 
-		for (int chip = 0; chip < 3; chip++)
-		{
-		    HAL_GPIO_WritePin(adc_cs_ports[chip], adc_cs_pins[chip], GPIO_PIN_RESET);
-		    HAL_SPI_TransmitReceive(&hspi1, adc_tx, adc_rx, 12, 10);
-		    HAL_GPIO_WritePin(adc_cs_ports[chip], adc_cs_pins[chip], GPIO_PIN_SET);
-		    snprintf(g_debug_msg, sizeof(g_debug_msg),
-		             "rx: %02X%02X%02X %02X%02X%02X %02X%02X%02X %02X%02X%02X",
-		             adc_rx[0],  adc_rx[1],  adc_rx[2],
-		             adc_rx[3],  adc_rx[4],  adc_rx[5],
-		             adc_rx[6],  adc_rx[7],  adc_rx[8],
-		             adc_rx[9],  adc_rx[10], adc_rx[11]);
-		    // Parse CH0, CH1, CH2 — each 24-bit signed, MSB first
-		    // rx[0..2] = STATUS, rx[3..5] = CH0, rx[6..8] = CH1, rx[9..11] = CH2
-		    for (int ch = 0; ch < 3; ch++)
-		    {
-		        int idx = 3 + ch * 3;
-		        int32_t raw = ((int32_t)adc_rx[idx] << 16)
-		                    | ((int32_t)adc_rx[idx+1] << 8)
-		                    |  (int32_t)adc_rx[idx+2];
+        // --- Encoder reads ---
+        uint16_t raw[3];
+        raw[0] = Read_SSI(cs_enc_1_GPIO_Port, cs_enc_1_Pin, enc1_data_GPIO_Port, enc1_data_Pin);
+        raw[1] = Read_SSI(cs_enc_2_GPIO_Port, cs_enc_2_Pin, enc2_data_GPIO_Port, enc2_data_Pin);
+        raw[2] = Read_SSI(cs_enc_3_GPIO_Port, cs_enc_3_Pin, enc3_data_GPIO_Port, enc3_data_Pin);
 
-		        if (raw & 0x800000) raw |= 0xFF000000;
+        for (int i = 0; i < 3; i++)
+        {
+            int16_t delta = (int16_t)(raw[i] - enc[i].prev_raw);
+            enc[i].accum_counts += delta;
+            enc[i].prev_raw = raw[i];
+            int32_t delta_for_vel = enc[i].accum_counts - enc[i].accum_prev;
+            enc[i].accum_prev = enc[i].accum_counts;
+            enc[i].velocity_rads = ((float)delta_for_vel / COUNTS_PER_REV) * TWO_PI / DT;
+        }
 
-		        float voltage = (float)raw * ADC_SCALE;
-		        motor_current[chip][ch] = voltage * I_SCALE;
-		    }
-		}
-		uint16_t raw[3];
-		raw[0] = Read_SSI(cs_enc_1_GPIO_Port, cs_enc_1_Pin, enc1_data_GPIO_Port, enc1_data_Pin);
-		raw[1] = Read_SSI(cs_enc_2_GPIO_Port, cs_enc_2_Pin, enc2_data_GPIO_Port, enc2_data_Pin);
-		raw[2] = Read_SSI(cs_enc_3_GPIO_Port, cs_enc_3_Pin, enc3_data_GPIO_Port, enc3_data_Pin);
+        // --- Motor drive ---
+        float mv1 = (float)target_velocities[0];
+        float mv2 = (float)target_velocities[1];
+        float mv3 = (float)target_velocities[2];
 
-		for (int i = 0; i < 3; i++)
-		{
-			// Signed delta handles wrap-around automatically
-			int16_t delta = (int16_t)(raw[i] - enc[i].prev_raw);
-			enc[i].accum_counts += delta;
-			enc[i].prev_raw = raw[i];
-
-			// Velocity in rad/s
-			int32_t delta_for_vel = enc[i].accum_counts - enc[i].accum_prev;
-			enc[i].accum_prev = enc[i].accum_counts;
-			enc[i].velocity_rads = ((float)delta_for_vel / COUNTS_PER_REV) * TWO_PI / DT;
-		}
-		snprintf(g_debug_msg, sizeof(g_debug_msg),
-		         "I1=%.2f I2=%.2f I3=%.2f e1=%u e2=%u e3=%u",
-		         motor_current[0][0],
-		         motor_current[1][0],
-		         motor_current[2][0],
-		         raw[0], raw[1], raw[2]);
-
-    	float mv1 = (float)target_velocities[0];
-    	float mv2 = (float)target_velocities[1];
-    	float mv3 = (float)target_velocities[2];
-
-        // Motor 1
         HAL_GPIO_WritePin(motor1.dir_port, motor1.dir_pin,
             mv1 >= 0 ? GPIO_PIN_SET : GPIO_PIN_RESET);
         HAL_GPIO_WritePin(motor1_nBRAKE_GPIO_Port, motor1_nBRAKE_Pin,
@@ -482,7 +395,6 @@ void StartControlTask(void const * argument)
         __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1,
             (uint32_t)(fminf(fabsf(mv1), MAX_DUTY) * arr_m1));
 
-        // Motor 2
         HAL_GPIO_WritePin(motor2.dir_port, motor2.dir_pin,
             mv2 >= 0 ? GPIO_PIN_SET : GPIO_PIN_RESET);
         HAL_GPIO_WritePin(motor2_nBRAKE_GPIO_Port, motor2_nBRAKE_Pin,
@@ -490,7 +402,6 @@ void StartControlTask(void const * argument)
         __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1,
             (uint32_t)(fminf(fabsf(mv2), MAX_DUTY) * arr_m2));
 
-        // Motor 3
         HAL_GPIO_WritePin(motor3.dir_port, motor3.dir_pin,
             mv3 >= 0 ? GPIO_PIN_SET : GPIO_PIN_RESET);
         HAL_GPIO_WritePin(motor3_nBRAKE_GPIO_Port, motor3_nBRAKE_Pin,
@@ -501,6 +412,7 @@ void StartControlTask(void const * argument)
         osDelay(1);
     }
 }
+
 
 
 /* Private application code --------------------------------------------------*/
@@ -552,7 +464,8 @@ void joint_state_timer_callback(rcl_timer_t * timer, int64_t last_call_time)
 		     motor_current[2][1]*motor_current[2][1] +
 		     motor_current[2][2]*motor_current[2][2]) / 3.0f);
 
-        rcl_publish(&joint_state_pub, &joint_state_msg, NULL);
+		rcl_ret_t ret = rcl_publish(&joint_state_pub, &joint_state_msg, NULL);
+		(void)ret;
     }
 }
 

@@ -100,7 +100,7 @@ void MX_GPIO_Init(void)
     HAL_GPIO_Init(motor2_pwm_GPIO_Port, &GPIO_InitStruct);
 
     GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Pull = GPIO_PULLUP;
     GPIO_InitStruct.Pin  = motor2_DRDY_Pin;
     HAL_GPIO_Init(motor2_DRDY_GPIO_Port, &GPIO_InitStruct);
     GPIO_InitStruct.Pin  = motor3_DRDY_Pin;
