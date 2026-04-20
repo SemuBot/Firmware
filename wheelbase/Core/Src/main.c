@@ -180,14 +180,11 @@ int main(void)
   HAL_GPIO_WritePin(motor3_nBRAKE_GPIO_Port, motor3_nBRAKE_Pin, GPIO_PIN_RESET);
   HAL_Delay(10);
 
-  snprintf(debug_msg, sizeof(debug_msg), "Setting ENABLE HIGH...\r\n");
-  CDC_Transmit_FS((uint8_t *)debug_msg, strlen(debug_msg));
+
   HAL_GPIO_WritePin(enable_GPIO_Port, enable_Pin, GPIO_PIN_SET);
   HAL_Delay(100);
 
   // Test SPI
-  snprintf(debug_msg, sizeof(debug_msg), "Testing SPI M1, M2, M3...\r\n");
-  CDC_Transmit_FS((uint8_t *)debug_msg, strlen(debug_msg));
   DRV8353_RawSPITest(&drv_motor1);
   DRV8353_RawSPITest(&drv_motor2);
   DRV8353_RawSPITest(&drv_motor3);
@@ -220,8 +217,6 @@ int main(void)
   DRV8353_WriteRegister(&drv_motor3, DRV8353_REG_OCP_CONTROL, ocp_ctrl);
   DRV8353_WriteRegister(&drv_motor3, DRV8353_REG_CSA_CONTROL, csa_ctrl);
 
-  snprintf(debug_msg, sizeof(debug_msg), "Configuration Complete.\r\n");
-  CDC_Transmit_FS((uint8_t *)debug_msg, strlen(debug_msg));
 
   HAL_GPIO_WritePin(motor1_nBRAKE_GPIO_Port, motor1_nBRAKE_Pin, GPIO_PIN_SET);
   HAL_GPIO_WritePin(motor2_nBRAKE_GPIO_Port, motor2_nBRAKE_Pin, GPIO_PIN_SET);
@@ -233,14 +228,11 @@ int main(void)
   DRV8353_CalibrateCSAs(&drv_motor2);
   DRV8353_CalibrateCSAs(&drv_motor3);
 
-  snprintf(debug_msg, sizeof(debug_msg), "Setting directions...\r\n");
-    CDC_Transmit_FS((uint8_t *)debug_msg, strlen(debug_msg));
-    HAL_Delay(10);
+
   HAL_GPIO_WritePin(motor1.dir_port, motor1.dir_pin, GPIO_PIN_SET);
   HAL_GPIO_WritePin(motor2.dir_port, motor2.dir_pin, GPIO_PIN_SET);
   HAL_GPIO_WritePin(motor3.dir_port, motor3.dir_pin, GPIO_PIN_SET);
-    CDC_Transmit_FS((uint8_t *)debug_msg, strlen(debug_msg));
-    HAL_Delay(10);
+
 
   /* USER CODE END 2 */
 
