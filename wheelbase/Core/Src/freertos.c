@@ -31,11 +31,19 @@ volatile float motor_duty[3] = {0.0f, 0.0f, 0.0f};
 volatile uint32_t cmd_last_tick = 0;
 #define CMD_TIMEOUT_MS 500
 
+#define COUNTS_PER_REV  16384.0f
+#define TWO_PI          (2.0f * 3.14159265f)
+
+
 // Encoder state
-static uint16_t enc_raw[3]  = {0};
-static float    enc_deg[3]  = {0};
-static float    enc_vel[3]  = {0};
-static uint16_t enc_prev[3] = {0};
+typedef struct {
+    uint16_t prev_raw;
+    int32_t  accum_counts;
+    int32_t  accum_prev;
+    float    velocity_rads;
+} encoder_state_t;
+
+encoder_state_t enc[3] = {0};
 
 // CDC receive buffer
 #define CDC_RX_BUF_SIZE 128
@@ -114,7 +122,8 @@ static void Motor_SetDuty(TIM_HandleTypeDef *htim, uint32_t channel,
 }
 
 
-uint16_t Read_SSI(GPIO_TypeDef *cs_port, uint16_t cs_pin)
+uint16_t Read_SSI(GPIO_TypeDef *cs_port, uint16_t cs_pin,
+                  GPIO_TypeDef *data_port, uint16_t data_pin)
 {
     uint16_t raw = 0;
 
@@ -126,7 +135,7 @@ uint16_t Read_SSI(GPIO_TypeDef *cs_port, uint16_t cs_pin)
         for (volatile int j = 0; j < 500; j++) { __NOP(); }
         HAL_GPIO_WritePin(SSI_CLK_GPIO_Port, SSI_CLK_Pin, GPIO_PIN_SET);
         for (volatile int j = 0; j < 500; j++) { __NOP(); }
-        if (HAL_GPIO_ReadPin(SSI_DATA_GPIO_Port, SSI_DATA_Pin) == GPIO_PIN_SET)
+        if (HAL_GPIO_ReadPin(data_port, data_pin) == GPIO_PIN_SET)
             raw |= (1 << i);
     }
 
@@ -168,9 +177,13 @@ void StartDefaultTask(void const *argument)
         if (now - last_report >= STATE_REPORT_PERIOD_MS) {
             last_report = now;
             snprintf(tx_buf, sizeof(tx_buf),
-                "STATE:%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n",
-                enc_deg[0], enc_deg[1], enc_deg[2],
-                enc_vel[0], enc_vel[1], enc_vel[2]);
+                "STATE:%.4f,%.4f,%.4f,%.4f,%.4f,%.4f\n",
+                (float)enc[0].accum_counts / COUNTS_PER_REV * TWO_PI,
+                (float)enc[1].accum_counts / COUNTS_PER_REV * TWO_PI,
+                (float)enc[2].accum_counts / COUNTS_PER_REV * TWO_PI,
+                enc[0].velocity_rads,
+                enc[1].velocity_rads,
+                enc[2].velocity_rads);
             CDC_Transmit_FS((uint8_t *)tx_buf, strlen(tx_buf));
         }
 
@@ -200,22 +213,25 @@ void StartControlTask(void const *argument)
     HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
     HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
 
-    const float dt          = CONTROL_LOOP_PERIOD_MS / 1000.0f;
-    const float DEG_PER_TICK = 360.0f / 16384.0f;
+    enc[0].prev_raw = Read_SSI(cs_enc_1_GPIO_Port, cs_enc_1_Pin, enc1_data_GPIO_Port, enc1_data_Pin);
+    enc[1].prev_raw = Read_SSI(cs_enc_2_GPIO_Port, cs_enc_2_Pin, enc2_data_GPIO_Port, enc2_data_Pin);
+    enc[2].prev_raw = Read_SSI(cs_enc_3_GPIO_Port, cs_enc_3_Pin, enc3_data_GPIO_Port, enc3_data_Pin);
+
+    const float DT             = CONTROL_LOOP_PERIOD_MS / 1000.0f;
 
     for (;;) {
-        enc_raw[0] = Read_SSI(cs_enc_1_GPIO_Port, cs_enc_1_Pin);
-        enc_raw[1] = Read_SSI(cs_enc_2_GPIO_Port, cs_enc_2_Pin);
-        enc_raw[2] = Read_SSI(cs_enc_3_GPIO_Port, cs_enc_3_Pin);
+        uint16_t raw[3];
+        raw[0] = Read_SSI(cs_enc_1_GPIO_Port, cs_enc_1_Pin, enc1_data_GPIO_Port, enc1_data_Pin);
+        raw[1] = Read_SSI(cs_enc_2_GPIO_Port, cs_enc_2_Pin, enc2_data_GPIO_Port, enc2_data_Pin);
+        raw[2] = Read_SSI(cs_enc_3_GPIO_Port, cs_enc_3_Pin, enc3_data_GPIO_Port, enc3_data_Pin);
 
         for (int i = 0; i < 3; i++) {
-            enc_deg[i] = (float)enc_raw[i] * DEG_PER_TICK;
-
-            int16_t delta = (int16_t)enc_raw[i] - (int16_t)enc_prev[i];
-            if (delta >  8192) delta -= 16384;
-            if (delta < -8192) delta += 16384;
-            enc_vel[i]  = (float)delta * DEG_PER_TICK / dt;
-            enc_prev[i] = enc_raw[i];
+            int16_t delta = (int16_t)(raw[i] - enc[i].prev_raw);
+            enc[i].accum_counts += delta;
+            enc[i].prev_raw = raw[i];
+            int32_t delta_for_vel = enc[i].accum_counts - enc[i].accum_prev;
+            enc[i].accum_prev = enc[i].accum_counts;
+            enc[i].velocity_rads = ((float)delta_for_vel / COUNTS_PER_REV) * TWO_PI / DT;
         }
 
         uint32_t now = HAL_GetTick();
