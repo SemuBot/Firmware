@@ -1,10 +1,8 @@
-/* Includes ------------------------------------------------------------------*/
 #include "FreeRTOS.h"
 #include "task.h"
 #include "main.h"
 #include "cmsis_os.h"
 
-/* USER CODE BEGIN Includes */
 #include "motor.h"
 #include "drv8353.h"
 #include "tim.h"
@@ -13,7 +11,6 @@
 #include <math.h>
 #include <string.h>
 #include <stdio.h>
-
 #include <rcl/rcl.h>
 #include <rcl/error_handling.h>
 #include <rclc/rclc.h>
@@ -24,42 +21,32 @@
 #include "usb_cdc_transport.h"
 #include "rosidl_runtime_c/string_functions.h"
 #include "rosidl_runtime_c/primitives_sequence_functions.h"
-/* USER CODE END Includes */
 #include "diagnostic_msgs/msg/diagnostic_array.h"
 #include "diagnostic_msgs/msg/diagnostic_status.h"
 #include "diagnostic_msgs/msg/key_value.h"
 
-// Add with other micro-ROS variables
-rcl_publisher_t diagnostics_pub;
-rcl_timer_t diagnostics_timer;
-diagnostic_msgs__msg__DiagnosticArray diagnostics_msg;
-/* USER CODE BEGIN PD */
 #define CONTROL_LOOP_PERIOD_MS  5
 #define JOINT_STATE_PERIOD_MS   10
-#define DIAGNOSTICS_PERIOD_MS 100
+#define DIAGNOSTICS_PERIOD_MS   100
+#define CMD_TIMEOUT_MS          1000
 
-#define WHEEL_RADIUS            0.05f
-#define ROBOT_RADIUS            0.15f
+#define WHEEL_RADIUS    0.05f
+#define ROBOT_RADIUS    0.15f
+#define MOTOR1_ANGLE    0.0f
+#define MOTOR2_ANGLE    2.0944f
+#define MOTOR3_ANGLE    4.1888f
+#define COUNTS_PER_REV  16384.0f
+#define TWO_PI          (2.0f * 3.14159265f)
+#define DT              (CONTROL_LOOP_PERIOD_MS / 1000.0f)
 
-#define MOTOR1_ANGLE            0.0f
-#define MOTOR2_ANGLE            2.0944f
-#define MOTOR3_ANGLE            4.1888f
-
-char debug_msg[256];
 extern motor_st motor1, motor2, motor3;
 extern DRV8353_Handle drv_motor1, drv_motor2, drv_motor3;
-/* USER CODE END PD */
 
-/* USER CODE BEGIN Variables */
-
-// cmd_vel from micro-ROS
 volatile float cmd_vx    = 0.0f;
 volatile float cmd_vy    = 0.0f;
 volatile float cmd_omega = 0.0f;
 volatile uint32_t cmd_last_tick = 0;
-#define CMD_TIMEOUT_MS 1000
 
-// PID state per motor
 typedef struct {
     float kp, ki, kd;
     float integral;
@@ -69,28 +56,28 @@ typedef struct {
 
 static PID_t pid[3];
 
-// Encoder state
-static uint16_t enc_raw[3]  = {0};
-static float    enc_deg[3]  = {0};
-static float    enc_vel[3]  = {0};
-static uint16_t enc_prev[3] = {0};
+typedef struct {
+    uint16_t prev_raw;
+    int32_t  accum_counts;
+    int32_t  accum_prev;
+    float    velocity_rads;
+} encoder_state_t;
+
+encoder_state_t enc[3] = {0};
 
 // micro-ROS
 rcl_node_t node;
 rclc_support_t support;
 rcl_subscription_t cmd_vel_sub;
 rcl_publisher_t joint_state_pub;
+rcl_publisher_t diagnostics_pub;
 rclc_executor_t executor;
 sensor_msgs__msg__JointState joint_state_msg;
 geometry_msgs__msg__Twist cmd_vel_msg;
 rcl_timer_t joint_state_timer;
-rcl_publisher_t diagnostics_pub;
 rcl_timer_t diagnostics_timer;
 diagnostic_msgs__msg__DiagnosticArray diagnostics_msg;
-
-
 char g_debug_msg[128] = "init";
-/* USER CODE END Variables */
 
 osThreadId defaultTaskHandle;
 osThreadId controlTaskHandle;
@@ -104,35 +91,6 @@ void MX_FREERTOS_Init(void);
 static StaticTask_t xIdleTaskTCBBuffer;
 static StackType_t xIdleStack[configMINIMAL_STACK_SIZE];
 
-
-
-void uros_fini_all(void)
-{
-    rcl_publisher_fini(&joint_state_pub, &node);
-    rcl_publisher_fini(&diagnostics_pub, &node);
-
-    rcl_timer_fini(&joint_state_timer);
-    rcl_timer_fini(&diagnostics_timer);
-
-    rclc_executor_fini(&executor);
-    rcl_node_fini(&node);
-    rclc_support_fini(&support);
-}
-
-void diagnostics_timer_callback(rcl_timer_t *timer, int64_t last_call_time)
-{
-    (void)timer;
-    (void)last_call_time;
-
-    uint32_t tick = HAL_GetTick();
-    diagnostics_msg.header.stamp.sec     = tick / 1000;
-    diagnostics_msg.header.stamp.nanosec = (tick % 1000) * 1000000;
-
-    rosidl_runtime_c__String__assign(
-        &diagnostics_msg.status.data[0].message, g_debug_msg);
-
-    rcl_publish(&diagnostics_pub, &diagnostics_msg, NULL);
-}
 void vApplicationGetIdleTaskMemory(StaticTask_t **ppxIdleTaskTCBBuffer,
                                    StackType_t **ppxIdleTaskStackBuffer,
                                    uint32_t *pulIdleTaskStackSize)
@@ -142,9 +100,19 @@ void vApplicationGetIdleTaskMemory(StaticTask_t **ppxIdleTaskTCBBuffer,
     *pulIdleTaskStackSize   = configMINIMAL_STACK_SIZE;
 }
 
-/* -----------------------------------------------------------------------
- * Inverse kinematics: cmd_vel -> per-motor rad/s
- * ----------------------------------------------------------------------- */
+void uros_fini_all(void)
+{
+    rcl_ret_t ret;
+    ret = rcl_subscription_fini(&cmd_vel_sub, &node);   (void)ret;
+    ret = rcl_publisher_fini(&joint_state_pub, &node);  (void)ret;
+    ret = rcl_publisher_fini(&diagnostics_pub, &node);  (void)ret;
+    ret = rcl_timer_fini(&joint_state_timer);            (void)ret;
+    ret = rcl_timer_fini(&diagnostics_timer);            (void)ret;
+    ret = rclc_executor_fini(&executor);                 (void)ret;
+    ret = rcl_node_fini(&node);                          (void)ret;
+    rclc_support_fini(&support);
+}
+
 static void InvKinematics(float vx, float vy, float omega, float vel_out[3])
 {
     float angles[3] = {MOTOR1_ANGLE, MOTOR2_ANGLE, MOTOR3_ANGLE};
@@ -154,9 +122,6 @@ static void InvKinematics(float vx, float vy, float omega, float vel_out[3])
     }
 }
 
-/* -----------------------------------------------------------------------
- * PID init
- * ----------------------------------------------------------------------- */
 static void PID_Init(PID_t *p, float kp, float ki, float kd,
                      float out_min, float out_max)
 {
@@ -169,86 +134,61 @@ static void PID_Init(PID_t *p, float kp, float ki, float kd,
     p->output_max = out_max;
 }
 
-/* -----------------------------------------------------------------------
- * PID update
- * ----------------------------------------------------------------------- */
 static float PID_Update(PID_t *p, float setpoint, float measured, float dt)
 {
     float error = setpoint - measured;
     p->integral += error * dt;
-
     if (p->integral > p->output_max) p->integral = p->output_max;
     if (p->integral < p->output_min) p->integral = p->output_min;
-
     float derivative = (error - p->prev_error) / dt;
     p->prev_error = error;
-
     float output = p->kp * error + p->ki * p->integral + p->kd * derivative;
-
     if (output > p->output_max) output = p->output_max;
     if (output < p->output_min) output = p->output_min;
-
     return output;
 }
 
-/* -----------------------------------------------------------------------
- * Apply duty cycle [-1..1] to a motor
- * ----------------------------------------------------------------------- */
 static void Motor_SetDuty(TIM_HandleTypeDef *htim, uint32_t channel,
                           GPIO_TypeDef *dir_port, uint16_t dir_pin,
                           GPIO_TypeDef *brake_port, uint16_t brake_pin,
                           float duty)
 {
     uint32_t arr = __HAL_TIM_GET_AUTORELOAD(htim);
-
     if (fabsf(duty) < 0.01f) {
         HAL_GPIO_WritePin(brake_port, brake_pin, GPIO_PIN_RESET);
         __HAL_TIM_SET_COMPARE(htim, channel, 0);
         return;
     }
-
     HAL_GPIO_WritePin(brake_port, brake_pin, GPIO_PIN_SET);
-    HAL_GPIO_WritePin(dir_port, dir_pin,
-        duty >= 0.0f ? GPIO_PIN_SET : GPIO_PIN_RESET);
-
+    HAL_GPIO_WritePin(dir_port, dir_pin, duty >= 0.0f ? GPIO_PIN_SET : GPIO_PIN_RESET);
     float clamped = fminf(fabsf(duty), 1.0f);
     __HAL_TIM_SET_COMPARE(htim, channel, (uint32_t)(clamped * arr));
 }
 
-/* -----------------------------------------------------------------------
- * SSI encoder read
- * ----------------------------------------------------------------------- */
-uint16_t Read_SSI(GPIO_TypeDef *cs_port, uint16_t cs_pin)
+uint16_t Read_SSI(GPIO_TypeDef *cs_port, uint16_t cs_pin,
+                  GPIO_TypeDef *data_port, uint16_t data_pin)
 {
     uint16_t raw = 0;
-
     HAL_GPIO_WritePin(cs_port, cs_pin, GPIO_PIN_RESET);
     for (volatile int i = 0; i < 36; i++) { __NOP(); }
-
     for (int i = 16; i >= 0; i--) {
         HAL_GPIO_WritePin(SSI_CLK_GPIO_Port, SSI_CLK_Pin, GPIO_PIN_RESET);
         for (volatile int j = 0; j < 500; j++) { __NOP(); }
         HAL_GPIO_WritePin(SSI_CLK_GPIO_Port, SSI_CLK_Pin, GPIO_PIN_SET);
         for (volatile int j = 0; j < 500; j++) { __NOP(); }
-        if (HAL_GPIO_ReadPin(SSI_DATA_GPIO_Port, SSI_DATA_Pin) == GPIO_PIN_SET)
+        if (HAL_GPIO_ReadPin(data_port, data_pin) == GPIO_PIN_SET)
             raw |= (1 << i);
     }
-
     HAL_GPIO_WritePin(cs_port, cs_pin, GPIO_PIN_SET);
     for (volatile int i = 0; i < 500; i++) { __NOP(); }
-
     raw >>= 1;
     return raw & 0x3FFF;
 }
 
-/* -----------------------------------------------------------------------
- * micro-ROS callbacks
- * ----------------------------------------------------------------------- */
 void cmd_vel_callback(const void *msgin)
 {
     const geometry_msgs__msg__Twist *msg =
         (const geometry_msgs__msg__Twist *)msgin;
-
     cmd_vx        = (float)msg->linear.x;
     cmd_vy        = (float)msg->linear.y;
     cmd_omega     = (float)msg->angular.z;
@@ -264,37 +204,50 @@ void joint_state_timer_callback(rcl_timer_t *timer, int64_t last_call_time)
     joint_state_msg.header.stamp.sec     = tick / 1000;
     joint_state_msg.header.stamp.nanosec = (tick % 1000) * 1000000;
 
-    // Position in degrees, velocity in deg/s
+    const float COUNTS_TO_RAD = TWO_PI / COUNTS_PER_REV;
     for (int i = 0; i < 3; i++) {
-        joint_state_msg.position.data[i] = (double)enc_deg[i];
-        joint_state_msg.velocity.data[i] = (double)enc_vel[i];
+        joint_state_msg.position.data[i] = (double)enc[i].accum_counts * COUNTS_TO_RAD;
+        joint_state_msg.velocity.data[i] = (double)enc[i].velocity_rads;
         joint_state_msg.effort.data[i]   = 0.0;
     }
 
-    rcl_publish(&joint_state_pub, &joint_state_msg, NULL);
+    rcl_ret_t ret = rcl_publish(&joint_state_pub, &joint_state_msg, NULL);
+    (void)ret;
 }
 
-/* -----------------------------------------------------------------------
- * FreeRTOS init
- * ----------------------------------------------------------------------- */
+void diagnostics_timer_callback(rcl_timer_t *timer, int64_t last_call_time)
+{
+    (void)timer;
+    (void)last_call_time;
+
+    uint32_t tick = HAL_GetTick();
+    diagnostics_msg.header.stamp.sec     = tick / 1000;
+    diagnostics_msg.header.stamp.nanosec = (tick % 1000) * 1000000;
+
+    char uptime_buf[16];
+    snprintf(uptime_buf, sizeof(uptime_buf), "%lu", tick);
+    rosidl_runtime_c__String__assign(
+        &diagnostics_msg.status.data[0].values.data[1].value, uptime_buf);
+    rosidl_runtime_c__String__assign(
+        &diagnostics_msg.status.data[0].message, g_debug_msg);
+
+    rcl_ret_t ret = rcl_publish(&diagnostics_pub, &diagnostics_msg, NULL);
+    (void)ret;
+}
+
 void MX_FREERTOS_Init(void)
 {
     osThreadDef(defaultTask, StartDefaultTask, osPriorityNormal, 0, 4000);
     defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
-
     osThreadDef(controlTask, StartControlTask, osPriorityAboveNormal, 0, 512);
     controlTaskHandle = osThreadCreate(osThread(controlTask), NULL);
 }
 
-/* -----------------------------------------------------------------------
- * Default task: micro-ROS init + executor spin
- * ----------------------------------------------------------------------- */
 void StartDefaultTask(void const *argument)
 {
     (void)argument;
     osDelay(2000);
 
-    // Set transport
     rmw_uros_set_custom_transport(
         true, NULL,
         cubemx_transport_open,
@@ -304,48 +257,34 @@ void StartDefaultTask(void const *argument)
 
     rcl_allocator_t allocator = rcl_get_default_allocator();
 
-    for (;;) {
-        // Wait for agent — slow blink
+    for (;;)
+    {
         while (rmw_uros_ping_agent(100, 1) != RMW_RET_OK) {
             HAL_GPIO_TogglePin(debug_GPIO_Port, debug_Pin);
             osDelay(500);
         }
-
         HAL_GPIO_WritePin(debug_GPIO_Port, debug_Pin, GPIO_PIN_SET);
 
-        // Initialize micro-ROS
-        if (rclc_support_init(&support, 0, NULL, &allocator) != RCL_RET_OK)
-            Error_Handler();
+        rclc_support_init(&support, 0, NULL, &allocator);
+        rclc_node_init_default(&node, "semubot_onboard", "", &support);
 
-        if (rclc_node_init_default(&node, "semubot_onboard", "", &support) != RCL_RET_OK)
-            Error_Handler();
+        rclc_subscription_init_best_effort(
+            &cmd_vel_sub, &node,
+            ROSIDL_GET_MSG_TYPE_SUPPORT(geometry_msgs, msg, Twist),
+            "/cmd_vel");
 
-        // Subscribe to cmd_vel as Twist
-        if (rclc_subscription_init_best_effort(
-                &cmd_vel_sub, &node,
-                ROSIDL_GET_MSG_TYPE_SUPPORT(geometry_msgs, msg, Twist),
-                "/cmd_vel") != RCL_RET_OK)
-            Error_Handler();
-
-        // Init joint state message
         sensor_msgs__msg__JointState__init(&joint_state_msg);
         rosidl_runtime_c__String__Sequence__init(&joint_state_msg.name, 3);
         rosidl_runtime_c__double__Sequence__init(&joint_state_msg.position, 3);
         rosidl_runtime_c__double__Sequence__init(&joint_state_msg.velocity, 3);
         rosidl_runtime_c__double__Sequence__init(&joint_state_msg.effort, 3);
+        rosidl_runtime_c__String__assign(&joint_state_msg.name.data[0], "omni_ball_1_joint");
+        rosidl_runtime_c__String__assign(&joint_state_msg.name.data[1], "omni_ball_2_joint");
+        rosidl_runtime_c__String__assign(&joint_state_msg.name.data[2], "omni_ball_3_joint");
 
-        rosidl_runtime_c__String__assign(&joint_state_msg.name.data[0], "motor1_joint");
-        rosidl_runtime_c__String__assign(&joint_state_msg.name.data[1], "motor2_joint");
-        rosidl_runtime_c__String__assign(&joint_state_msg.name.data[2], "motor3_joint");
+        rclc_publisher_init_default(&joint_state_pub, &node,
+            ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, JointState), "/motor_states");
 
-        // Create joint state publisher
-        if (rclc_publisher_init_default(
-                &joint_state_pub, &node,
-                ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, JointState),
-                "/motor_states") != RCL_RET_OK)
-            Error_Handler();
-
-        // Init diagnostics message
         diagnostic_msgs__msg__DiagnosticArray__init(&diagnostics_msg);
         diagnostic_msgs__msg__DiagnosticStatus__Sequence__init(&diagnostics_msg.status, 1);
         diagnostic_msgs__msg__DiagnosticStatus__init(&diagnostics_msg.status.data[0]);
@@ -360,52 +299,35 @@ void StartDefaultTask(void const *argument)
         rosidl_runtime_c__String__assign(&diagnostics_msg.status.data[0].values.data[1].key, "uptime_ms");
         rosidl_runtime_c__String__assign(&diagnostics_msg.status.data[0].values.data[1].value, "0");
 
-        // Create diagnostics publisher
-        if (rclc_publisher_init_default(
-                &diagnostics_pub, &node,
-                ROSIDL_GET_MSG_TYPE_SUPPORT(diagnostic_msgs, msg, DiagnosticArray),
-                "/diagnostics") != RCL_RET_OK)
-            Error_Handler();
+        rclc_publisher_init_default(&diagnostics_pub, &node,
+            ROSIDL_GET_MSG_TYPE_SUPPORT(diagnostic_msgs, msg, DiagnosticArray), "/diagnostics");
 
-        // Create timers
-        if (rclc_timer_init_default2(
-                &joint_state_timer, &support,
-                RCL_MS_TO_NS(JOINT_STATE_PERIOD_MS),
-                joint_state_timer_callback,
-                true) != RCL_RET_OK)
-            Error_Handler();
+        rclc_timer_init_default2(&joint_state_timer, &support,
+            RCL_MS_TO_NS(JOINT_STATE_PERIOD_MS), joint_state_timer_callback, true);
+        rclc_timer_init_default2(&diagnostics_timer, &support,
+            RCL_MS_TO_NS(DIAGNOSTICS_PERIOD_MS), diagnostics_timer_callback, true);
 
-        if (rclc_timer_init_default2(
-                &diagnostics_timer, &support,
-                RCL_MS_TO_NS(DIAGNOSTICS_PERIOD_MS),
-                diagnostics_timer_callback,
-                true) != RCL_RET_OK)
-            Error_Handler();
-
-        // Executor
         executor = rclc_executor_get_zero_initialized_executor();
         rclc_executor_init(&executor, &support.context, 3, &allocator);
-        rclc_executor_add_subscription(&executor, &cmd_vel_sub, &cmd_vel_msg,
-                                      &cmd_vel_callback, ON_NEW_DATA);
+        rclc_executor_add_subscription(&executor, &cmd_vel_sub,
+            &cmd_vel_msg, &cmd_vel_callback, ON_NEW_DATA);
         rclc_executor_add_timer(&executor, &joint_state_timer);
         rclc_executor_add_timer(&executor, &diagnostics_timer);
 
-        // Ping agent every 2 seconds
         uint32_t last_ping = HAL_GetTick();
         bool connected = true;
 
         while (connected) {
             if (HAL_GetTick() - last_ping > 2000) {
                 last_ping = HAL_GetTick();
-                if (rmw_uros_ping_agent(100, 1) != RMW_RET_OK) {
+                if (rmw_uros_ping_agent(100, 1) != RMW_RET_OK)
                     connected = false;
-                }
             }
             rclc_executor_spin_some(&executor, RCL_MS_TO_NS(5));
             osDelay(10);
         }
 
-        // Connection lost — stop motors and blink
+        // Connection lost — stop motors
         Motor_SetDuty(&htim1, TIM_CHANNEL_1,
             motor1.dir_port, motor1.dir_pin,
             motor1_nBRAKE_GPIO_Port, motor1_nBRAKE_Pin, 0.0f);
@@ -417,22 +339,15 @@ void StartDefaultTask(void const *argument)
             motor3_nBRAKE_GPIO_Port, motor3_nBRAKE_Pin, 0.0f);
 
         HAL_GPIO_WritePin(debug_GPIO_Port, debug_Pin, GPIO_PIN_RESET);
-
-        // Clean up
         uros_fini_all();
-
         osDelay(500);
     }
 }
 
-/* -----------------------------------------------------------------------
- * Control task: encoder read + inverse kinematics + PID + PWM
- * ----------------------------------------------------------------------- */
 void StartControlTask(void const *argument)
 {
     (void)argument;
 
-    // Deselect all CS
     HAL_GPIO_WritePin(motor1_adc_GPIO_Port, motor1_adc_Pin, GPIO_PIN_SET);
     HAL_GPIO_WritePin(motor2_adc_GPIO_Port, motor2_adc_Pin, GPIO_PIN_SET);
     HAL_GPIO_WritePin(motor3_adc_GPIO_Port, motor3_adc_Pin, GPIO_PIN_SET);
@@ -443,57 +358,61 @@ void StartControlTask(void const *argument)
     HAL_GPIO_WritePin(cs_enc_2_GPIO_Port,   cs_enc_2_Pin,   GPIO_PIN_SET);
     HAL_GPIO_WritePin(cs_enc_3_GPIO_Port,   cs_enc_3_Pin,   GPIO_PIN_SET);
 
-    // Start PWM
     __HAL_TIM_MOE_ENABLE(&htim1);
     HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
     HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
     HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
 
-    // Init PIDs
     PID_Init(&pid[0], 0.01f, 0.001f, 0.0f, -1.0f, 1.0f);
     PID_Init(&pid[1], 0.01f, 0.001f, 0.0f, -1.0f, 1.0f);
     PID_Init(&pid[2], 0.01f, 0.001f, 0.0f, -1.0f, 1.0f);
 
-    const float dt           = CONTROL_LOOP_PERIOD_MS / 1000.0f;
-    const float DEG_PER_TICK = 360.0f / 16384.0f;
+    // Prime encoders
+    enc[0].prev_raw = Read_SSI(cs_enc_1_GPIO_Port, cs_enc_1_Pin, enc1_data_GPIO_Port, enc1_data_Pin);
+    enc[1].prev_raw = Read_SSI(cs_enc_2_GPIO_Port, cs_enc_2_Pin, enc2_data_GPIO_Port, enc2_data_Pin);
+    enc[2].prev_raw = Read_SSI(cs_enc_3_GPIO_Port, cs_enc_3_Pin, enc3_data_GPIO_Port, enc3_data_Pin);
 
-    for (;;) {
-        // --- Read encoders ---
-        enc_raw[0] = Read_SSI(cs_enc_1_GPIO_Port, cs_enc_1_Pin);
-        enc_raw[1] = Read_SSI(cs_enc_2_GPIO_Port, cs_enc_2_Pin);
-        enc_raw[2] = Read_SSI(cs_enc_3_GPIO_Port, cs_enc_3_Pin);
+    for (;;)
+    {
+        // --- Encoder reads ---
+        uint16_t raw[3];
+        raw[0] = Read_SSI(cs_enc_1_GPIO_Port, cs_enc_1_Pin, enc1_data_GPIO_Port, enc1_data_Pin);
+        raw[1] = Read_SSI(cs_enc_2_GPIO_Port, cs_enc_2_Pin, enc2_data_GPIO_Port, enc2_data_Pin);
+        raw[2] = Read_SSI(cs_enc_3_GPIO_Port, cs_enc_3_Pin, enc3_data_GPIO_Port, enc3_data_Pin);
 
         for (int i = 0; i < 3; i++) {
-            enc_deg[i] = (float)enc_raw[i] * DEG_PER_TICK;
-
-            int16_t delta = (int16_t)enc_raw[i] - (int16_t)enc_prev[i];
-            if (delta >  8192) delta -= 16384;
-            if (delta < -8192) delta += 16384;
-            enc_vel[i]  = (float)delta * DEG_PER_TICK / dt;
-            enc_prev[i] = enc_raw[i];
+            int16_t delta = (int16_t)(raw[i] - enc[i].prev_raw);
+            enc[i].accum_counts += delta;
+            enc[i].prev_raw = raw[i];
+            int32_t delta_for_vel = enc[i].accum_counts - enc[i].accum_prev;
+            enc[i].accum_prev = enc[i].accum_counts;
+            enc[i].velocity_rads = ((float)delta_for_vel / COUNTS_PER_REV) * TWO_PI / DT;
         }
-
-        // Convert deg/s to rad/s
-        float meas_rads[3];
-        for (int i = 0; i < 3; i++)
-            meas_rads[i] = enc_vel[i] * (float)M_PI / 180.0f;
 
         // --- Inverse kinematics ---
         float vel_target[3] = {0};
         uint32_t now = HAL_GetTick();
         if (now - cmd_last_tick < CMD_TIMEOUT_MS) {
             InvKinematics(cmd_vx, cmd_vy, cmd_omega, vel_target);
+        } else {
+            // Timeout — reset PID state
+            for (int i = 0; i < 3; i++) {
+                pid[i].integral   = 0.0f;
+                pid[i].prev_error = 0.0f;
+            }
         }
 
-        // --- PID + output ---
+        // --- PID ---
         float duty[3];
         for (int i = 0; i < 3; i++)
-        	duty[i] = vel_target[i] / 5.0f;
-        	//duty[i] = PID_Update(&pid[i], vel_target[i], meas_rads[i], dt);
+            duty[i] = PID_Update(&pid[i], vel_target[i], enc[i].velocity_rads, DT);
+
         snprintf(g_debug_msg, sizeof(g_debug_msg),
-            "T:%.2f %.2f %.2f D:%.2f %.2f %.2f",
-            vel_target[0], vel_target[1], vel_target[2],
-            duty[0], duty[1], duty[2]);
+                 "T:%.2f %.2f %.2f V:%.2f %.2f %.2f",
+                 vel_target[0], vel_target[1], vel_target[2],
+                 enc[0].velocity_rads, enc[1].velocity_rads, enc[2].velocity_rads);
+
+        // --- Motor drive ---
         Motor_SetDuty(&htim1, TIM_CHANNEL_1,
             motor1.dir_port, motor1.dir_pin,
             motor1_nBRAKE_GPIO_Port, motor1_nBRAKE_Pin, duty[0]);
