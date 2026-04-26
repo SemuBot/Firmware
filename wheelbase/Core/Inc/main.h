@@ -87,7 +87,7 @@ void Error_Handler(void);
 #define enable_GPIO_Port GPIOB
 #define motor1_nBRAKE_Pin GPIO_PIN_12
 #define motor1_nBRAKE_GPIO_Port GPIOB
-#define motor1_dir_Pin GPIO_PIN_6
+#define motor1_dir_Pin GPIO_PIN_3
 #define motor1_dir_GPIO_Port GPIOC
 #define cs_enc_3_Pin GPIO_PIN_7
 #define cs_enc_3_GPIO_Port GPIOC

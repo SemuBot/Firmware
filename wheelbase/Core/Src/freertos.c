@@ -32,10 +32,10 @@
 
 #define WHEEL_RADIUS    0.05f
 #define ROBOT_RADIUS    0.15f
-#define MOTOR1_ANGLE    0.0f
-#define MOTOR2_ANGLE    2.0944f
-#define MOTOR3_ANGLE    4.1888f
-#define COUNTS_PER_REV  16384.0f
+#define MOTOR1_ANGLE    4.1888f  // 240 deg, rear-left
+#define MOTOR2_ANGLE    5.7596f  // 330 deg, rear-right
+#define MOTOR3_ANGLE    1.5708f  // 90 deg, front
+#define COUNTS_PER_REV  4096.0f
 #define TWO_PI          (2.0f * 3.14159265f)
 #define DT              (CONTROL_LOOP_PERIOD_MS / 1000.0f)
 
@@ -115,10 +115,17 @@ void uros_fini_all(void)
 
 static void InvKinematics(float vx, float vy, float omega, float vel_out[3])
 {
-    float angles[3] = {MOTOR1_ANGLE, MOTOR2_ANGLE, MOTOR3_ANGLE};
+    float angles[3] = {
+        MOTOR1_ANGLE,
+        MOTOR2_ANGLE,
+        MOTOR3_ANGLE
+    };
+
     for (int i = 0; i < 3; i++) {
-        float tangential = vx * cosf(angles[i]) + vy * sinf(angles[i]) + omega * ROBOT_RADIUS;
-        vel_out[i] = tangential / WHEEL_RADIUS;
+        vel_out[i] =
+            (-sinf(angles[i]) * vx +
+              cosf(angles[i]) * vy +
+              omega * ROBOT_RADIUS) / WHEEL_RADIUS;
     }
 }
 
@@ -161,7 +168,7 @@ static void Motor_SetDuty(TIM_HandleTypeDef *htim, uint32_t channel,
     }
     HAL_GPIO_WritePin(brake_port, brake_pin, GPIO_PIN_SET);
     HAL_GPIO_WritePin(dir_port, dir_pin, duty >= 0.0f ? GPIO_PIN_SET : GPIO_PIN_RESET);
-    float clamped = fminf(fabsf(duty), 1.0f);
+    float clamped = fminf(fabsf(duty), 0.4f);
     __HAL_TIM_SET_COMPARE(htim, channel, (uint32_t)(clamped * arr));
 }
 
@@ -169,20 +176,26 @@ uint16_t Read_SSI(GPIO_TypeDef *cs_port, uint16_t cs_pin,
                   GPIO_TypeDef *data_port, uint16_t data_pin)
 {
     uint16_t raw = 0;
+
     HAL_GPIO_WritePin(cs_port, cs_pin, GPIO_PIN_RESET);
     for (volatile int i = 0; i < 36; i++) { __NOP(); }
-    for (int i = 16; i >= 0; i--) {
+
+    for (int i = 15; i >= 0; i--) {
         HAL_GPIO_WritePin(SSI_CLK_GPIO_Port, SSI_CLK_Pin, GPIO_PIN_RESET);
         for (volatile int j = 0; j < 500; j++) { __NOP(); }
+
         HAL_GPIO_WritePin(SSI_CLK_GPIO_Port, SSI_CLK_Pin, GPIO_PIN_SET);
         for (volatile int j = 0; j < 500; j++) { __NOP(); }
-        if (HAL_GPIO_ReadPin(data_port, data_pin) == GPIO_PIN_SET)
+
+        if (HAL_GPIO_ReadPin(data_port, data_pin) == GPIO_PIN_SET) {
             raw |= (1 << i);
+        }
     }
+
     HAL_GPIO_WritePin(cs_port, cs_pin, GPIO_PIN_SET);
     for (volatile int i = 0; i < 500; i++) { __NOP(); }
-    raw >>= 1;
-    return raw & 0x3FFF;
+
+    return (raw & 0x3FFF) >> 2;
 }
 
 void cmd_vel_callback(const void *msgin)
@@ -205,11 +218,18 @@ void joint_state_timer_callback(rcl_timer_t *timer, int64_t last_call_time)
     joint_state_msg.header.stamp.nanosec = (tick % 1000) * 1000000;
 
     const float COUNTS_TO_RAD = TWO_PI / COUNTS_PER_REV;
-    for (int i = 0; i < 3; i++) {
-        joint_state_msg.position.data[i] = (double)enc[i].accum_counts * COUNTS_TO_RAD;
-        joint_state_msg.velocity.data[i] = (double)enc[i].velocity_rads;
-        joint_state_msg.effort.data[i]   = 0.0;
-    }
+
+    joint_state_msg.position.data[0] = (double)enc[2].accum_counts * COUNTS_TO_RAD; // M3
+    joint_state_msg.position.data[1] = (double)enc[0].accum_counts * COUNTS_TO_RAD; // M1
+    joint_state_msg.position.data[2] = (double)enc[1].accum_counts * COUNTS_TO_RAD; // M2
+
+    joint_state_msg.velocity.data[0] = (double)enc[2].velocity_rads;
+    joint_state_msg.velocity.data[1] = (double)enc[0].velocity_rads;
+    joint_state_msg.velocity.data[2] = (double)enc[1].velocity_rads;
+
+    joint_state_msg.effort.data[0] = 0.0;
+    joint_state_msg.effort.data[1] = 0.0;
+    joint_state_msg.effort.data[2] = 0.0;
 
     rcl_ret_t ret = rcl_publish(&joint_state_pub, &joint_state_msg, NULL);
     (void)ret;
@@ -278,9 +298,9 @@ void StartDefaultTask(void const *argument)
         rosidl_runtime_c__double__Sequence__init(&joint_state_msg.position, 3);
         rosidl_runtime_c__double__Sequence__init(&joint_state_msg.velocity, 3);
         rosidl_runtime_c__double__Sequence__init(&joint_state_msg.effort, 3);
-        rosidl_runtime_c__String__assign(&joint_state_msg.name.data[0], "omni_ball_1_joint");
-        rosidl_runtime_c__String__assign(&joint_state_msg.name.data[1], "omni_ball_2_joint");
-        rosidl_runtime_c__String__assign(&joint_state_msg.name.data[2], "omni_ball_3_joint");
+        rosidl_runtime_c__String__assign(&joint_state_msg.name.data[0], "omni_ball_3_joint");
+        rosidl_runtime_c__String__assign(&joint_state_msg.name.data[1], "omni_ball_1_joint");
+        rosidl_runtime_c__String__assign(&joint_state_msg.name.data[2], "omni_ball_2_joint");
 
         rclc_publisher_init_default(&joint_state_pub, &node,
             ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, JointState), "/motor_states");
@@ -363,9 +383,9 @@ void StartControlTask(void const *argument)
     HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
     HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
 
-    PID_Init(&pid[0], 0.01f, 0.001f, 0.0f, -1.0f, 1.0f);
-    PID_Init(&pid[1], 0.01f, 0.001f, 0.0f, -1.0f, 1.0f);
-    PID_Init(&pid[2], 0.01f, 0.001f, 0.0f, -1.0f, 1.0f);
+    PID_Init(&pid[0], 0.01f, 0.00f, 0.0f, -0.3f, 0.3f);
+    PID_Init(&pid[1], 0.01f, 0.00f, 0.0f, -0.3f, 0.3f);
+    PID_Init(&pid[2], 0.01f, 0.00f, 0.0f, -0.3f, 0.3f);
 
     // Prime encoders
     enc[0].prev_raw = Read_SSI(cs_enc_1_GPIO_Port, cs_enc_1_Pin, enc1_data_GPIO_Port, enc1_data_Pin);
@@ -381,12 +401,26 @@ void StartControlTask(void const *argument)
         raw[2] = Read_SSI(cs_enc_3_GPIO_Port, cs_enc_3_Pin, enc3_data_GPIO_Port, enc3_data_Pin);
 
         for (int i = 0; i < 3; i++) {
-            int16_t delta = (int16_t)(raw[i] - enc[i].prev_raw);
+            int32_t delta = (int32_t)raw[i] - (int32_t)enc[i].prev_raw;
+
+            if (delta > 2048) {
+                delta -= 4096;
+            } else if (delta < -2048) {
+                delta += 4096;
+            }
+
+            if (delta > 1000 || delta < -1000) {
+                delta = 0;
+            }
+
             enc[i].accum_counts += delta;
             enc[i].prev_raw = raw[i];
+
             int32_t delta_for_vel = enc[i].accum_counts - enc[i].accum_prev;
             enc[i].accum_prev = enc[i].accum_counts;
-            enc[i].velocity_rads = ((float)delta_for_vel / COUNTS_PER_REV) * TWO_PI / DT;
+
+            enc[i].velocity_rads =
+                ((float)delta_for_vel / COUNTS_PER_REV) * TWO_PI / DT;
         }
 
         // --- Inverse kinematics ---
@@ -404,9 +438,40 @@ void StartControlTask(void const *argument)
 
         // --- PID ---
         float duty[3];
-        for (int i = 0; i < 3; i++)
-            duty[i] = PID_Update(&pid[i], vel_target[i], enc[i].velocity_rads, DT);
+        for (int i = 0; i < 3; i++) {
+            if (fabsf(vel_target[i]) < 0.01f) {
+                duty[i] = 0.0f;
+                pid[i].integral = 0.0f;
+                pid[i].prev_error = 0.0f;
+            } else {
+                float ff = vel_target[i] * 0.05f;
+                float corr = PID_Update(&pid[i], vel_target[i], enc[i].velocity_rads, DT);
 
+                duty[i] = ff + corr;
+
+                if (duty[i] > 0.30f) duty[i] = 0.30f;
+                if (duty[i] < -0.30f) duty[i] = -0.30f;
+
+                const float MIN_PWM = 0.30f;
+                if (fabsf(duty[i]) < MIN_PWM) {
+                    duty[i] = copysignf(MIN_PWM, duty[i]);
+                }
+            }
+        }
+        static float prev_duty_cmd[3] = {0.0f, 0.0f, 0.0f};
+        static uint32_t kick_until[3] = {0, 0, 0};
+
+        for (int i = 0; i < 3; i++) {
+            if (fabsf(prev_duty_cmd[i]) < 0.01f && fabsf(duty[i]) > 0.01f) {
+                kick_until[i] = HAL_GetTick() + 120;
+            }
+
+            if (HAL_GetTick() < kick_until[i]) {
+                duty[i] = copysignf(0.40f, duty[i]);
+            }
+
+            prev_duty_cmd[i] = duty[i];
+        }
         snprintf(g_debug_msg, sizeof(g_debug_msg),
                  "T:%.2f %.2f %.2f V:%.2f %.2f %.2f",
                  vel_target[0], vel_target[1], vel_target[2],
