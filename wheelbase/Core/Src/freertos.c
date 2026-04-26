@@ -31,7 +31,7 @@ volatile float motor_duty[3] = {0.0f, 0.0f, 0.0f};
 volatile uint32_t cmd_last_tick = 0;
 #define CMD_TIMEOUT_MS 500
 
-#define COUNTS_PER_REV  16384.0f
+#define COUNTS_PER_REV  4096.0f
 #define TWO_PI          (2.0f * 3.14159265f)
 
 
@@ -117,7 +117,7 @@ static void Motor_SetDuty(TIM_HandleTypeDef *htim, uint32_t channel,
     HAL_GPIO_WritePin(dir_port, dir_pin,
         duty >= 0.0f ? GPIO_PIN_SET : GPIO_PIN_RESET);
 
-    float clamped = fminf(fabsf(duty), 1.0f);
+    float clamped = fminf(fabsf(duty), 0.40f);
     __HAL_TIM_SET_COMPARE(htim, channel, (uint32_t)(clamped * arr));
 }
 
@@ -130,20 +130,22 @@ uint16_t Read_SSI(GPIO_TypeDef *cs_port, uint16_t cs_pin,
     HAL_GPIO_WritePin(cs_port, cs_pin, GPIO_PIN_RESET);
     for (volatile int i = 0; i < 36; i++) { __NOP(); }
 
-    for (int i = 16; i >= 0; i--) {
+    for (int i = 15; i >= 0; i--) {
         HAL_GPIO_WritePin(SSI_CLK_GPIO_Port, SSI_CLK_Pin, GPIO_PIN_RESET);
         for (volatile int j = 0; j < 500; j++) { __NOP(); }
+
         HAL_GPIO_WritePin(SSI_CLK_GPIO_Port, SSI_CLK_Pin, GPIO_PIN_SET);
         for (volatile int j = 0; j < 500; j++) { __NOP(); }
-        if (HAL_GPIO_ReadPin(data_port, data_pin) == GPIO_PIN_SET)
+
+        if (HAL_GPIO_ReadPin(data_port, data_pin) == GPIO_PIN_SET) {
             raw |= (1 << i);
+        }
     }
 
     HAL_GPIO_WritePin(cs_port, cs_pin, GPIO_PIN_SET);
     for (volatile int i = 0; i < 500; i++) { __NOP(); }
 
-    raw >>= 1;
-    return raw & 0x3FFF;
+    return (raw & 0x3FFF) >> 2;   // 12-bit position: 0..4095
 }
 
 
@@ -226,28 +228,58 @@ void StartControlTask(void const *argument)
         raw[2] = Read_SSI(cs_enc_3_GPIO_Port, cs_enc_3_Pin, enc3_data_GPIO_Port, enc3_data_Pin);
 
         for (int i = 0; i < 3; i++) {
-            int16_t delta = (int16_t)(raw[i] - enc[i].prev_raw);
+            int32_t delta = (int32_t)raw[i] - (int32_t)enc[i].prev_raw;
+
+            if (delta > 2048) {
+                delta -= 4096;
+            } else if (delta < -2048) {
+                delta += 4096;
+            }
+
+            if (delta > 1000 || delta < -1000) {
+                delta = 0;
+            }
+
             enc[i].accum_counts += delta;
             enc[i].prev_raw = raw[i];
+
             int32_t delta_for_vel = enc[i].accum_counts - enc[i].accum_prev;
             enc[i].accum_prev = enc[i].accum_counts;
-            enc[i].velocity_rads = ((float)delta_for_vel / COUNTS_PER_REV) * TWO_PI / DT;
+
+            enc[i].velocity_rads =
+                ((float)delta_for_vel / COUNTS_PER_REV) * TWO_PI / DT;
         }
 
         uint32_t now = HAL_GetTick();
         float d0 = (now - cmd_last_tick < CMD_TIMEOUT_MS) ? motor_duty[0] : 0.0f;
         float d1 = (now - cmd_last_tick < CMD_TIMEOUT_MS) ? motor_duty[1] : 0.0f;
         float d2 = (now - cmd_last_tick < CMD_TIMEOUT_MS) ? motor_duty[2] : 0.0f;
+        static float prev_duty[3] = {0.0f, 0.0f, 0.0f};
+        static uint32_t kick_until[3] = {0, 0, 0};
+
+        float d[3] = {d0, d1, d2};
+
+        for (int i = 0; i < 3; i++) {
+            if (fabsf(prev_duty[i]) < 0.01f && fabsf(d[i]) > 0.01f) {
+                kick_until[i] = HAL_GetTick() + 120;
+            }
+
+            if (HAL_GetTick() < kick_until[i]) {
+                d[i] = copysignf(0.40f, d[i]);
+            }
+
+            prev_duty[i] = d[i];
+        }
 
         Motor_SetDuty(&htim1, TIM_CHANNEL_1,
             motor1.dir_port, motor1.dir_pin,
-            motor1_nBRAKE_GPIO_Port, motor1_nBRAKE_Pin, d0);
+            motor1_nBRAKE_GPIO_Port, motor1_nBRAKE_Pin, d[0]);
         Motor_SetDuty(&htim3, TIM_CHANNEL_1,
             motor2.dir_port, motor2.dir_pin,
-            motor2_nBRAKE_GPIO_Port, motor2_nBRAKE_Pin, d1);
+            motor2_nBRAKE_GPIO_Port, motor2_nBRAKE_Pin, d[1]);
         Motor_SetDuty(&htim4, TIM_CHANNEL_1,
             motor3.dir_port, motor3.dir_pin,
-            motor3_nBRAKE_GPIO_Port, motor3_nBRAKE_Pin, d2);
+            motor3_nBRAKE_GPIO_Port, motor3_nBRAKE_Pin, d[2]);
 
         osDelay(CONTROL_LOOP_PERIOD_MS);
     }

@@ -127,6 +127,23 @@ void MX_GPIO_Init(void)
     HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
     GPIO_InitStruct.Pin  = enc2_data_Pin;                  // PC15
     HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+
+
+    GPIO_InitStruct.Pin       = motor1_pwm_Pin;
+    GPIO_InitStruct.Mode      = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Pull      = GPIO_NOPULL;
+    GPIO_InitStruct.Speed     = GPIO_SPEED_FREQ_HIGH;
+    GPIO_InitStruct.Alternate = GPIO_AF6_TIM1;
+    HAL_GPIO_Init(motor1_pwm_GPIO_Port, &GPIO_InitStruct);
+
+    // Motor 3 PWM: PB6 = TIM4_CH1
+    GPIO_InitStruct.Pin       = motor3_pwm_Pin;
+    GPIO_InitStruct.Mode      = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Pull      = GPIO_NOPULL;
+    GPIO_InitStruct.Speed     = GPIO_SPEED_FREQ_HIGH;
+    GPIO_InitStruct.Alternate = GPIO_AF2_TIM4;
+    HAL_GPIO_Init(motor3_pwm_GPIO_Port, &GPIO_InitStruct);
 }
 
 /* USER CODE BEGIN 2 */
