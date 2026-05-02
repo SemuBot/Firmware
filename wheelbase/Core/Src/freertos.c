@@ -53,9 +53,9 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
-#define CONTROL_LOOP_PERIOD_MS 1
-#define JOINT_STATE_PERIOD_MS 10
-#define DIAGNOSTICS_PERIOD_MS 100
+#define CONTROL_LOOP_PERIOD_MS 5
+#define JOINT_STATE_PERIOD_MS 100
+#define DIAGNOSTICS_PERIOD_MS 1000
 
 typedef struct {
     uint16_t prev_raw;
@@ -68,6 +68,12 @@ static encoder_state_t enc[3] = {0};
 volatile float motor_current[3][3] = {0};  // [motor][phase]
 static int32_t prev_pub_counts[3] = {0, 0, 0};
 static uint32_t prev_pub_tick = 0;
+
+#define MAX_DUTY              0.40f
+#define DUTY_DEADZONE         0.01f
+#define NEG_PREKICK_DUTY      0.15f
+#define NEG_PREKICK_MS        50
+#define CMD_TIMEOUT_MS 		  800
 
 
 char debug_msg[256];
@@ -85,7 +91,6 @@ void diagnostics_timer_callback(rcl_timer_t * timer, int64_t last_call_time);
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
 volatile float target_pwm[3] = {0.0f, 0.0f, 0.0f};
-#define CMD_TIMEOUT_MS 1000
 
 /* USER CODE END Variables */
 rcl_node_t node;
@@ -193,6 +198,32 @@ void uros_fini_all(void)
 }
 
 
+static void Motor_SetDuty(TIM_HandleTypeDef *htim, uint32_t channel,
+                          GPIO_TypeDef *dir_port, uint16_t dir_pin,
+                          GPIO_TypeDef *brake_port, uint16_t brake_pin,
+                          float duty)
+{
+    uint32_t arr = __HAL_TIM_GET_AUTORELOAD(htim);
+
+    if (fabsf(duty) < DUTY_DEADZONE) {
+        __HAL_TIM_SET_COMPARE(htim, channel, 0);
+
+        HAL_GPIO_WritePin(brake_port, brake_pin, GPIO_PIN_RESET);
+
+        return;
+    }
+
+    float clamped = fminf(fabsf(duty), MAX_DUTY);
+
+    HAL_GPIO_WritePin(dir_port, dir_pin,
+        duty >= 0.0f ? GPIO_PIN_SET : GPIO_PIN_RESET);
+
+    HAL_GPIO_WritePin(brake_port, brake_pin, GPIO_PIN_SET);
+
+    __HAL_TIM_SET_COMPARE(htim, channel, (uint32_t)(clamped * arr));
+}
+
+
 void StartDefaultTask(void const *argument)
 {
     osDelay(2000);
@@ -229,9 +260,9 @@ void StartDefaultTask(void const *argument)
         rosidl_runtime_c__double__Sequence__init(&joint_state_msg.position, 3);
         rosidl_runtime_c__double__Sequence__init(&joint_state_msg.velocity, 3);
         rosidl_runtime_c__double__Sequence__init(&joint_state_msg.effort, 3);
-        rosidl_runtime_c__String__assign(&joint_state_msg.name.data[0], "omni_ball_3_joint");
-        rosidl_runtime_c__String__assign(&joint_state_msg.name.data[1], "omni_ball_1_joint");
-        rosidl_runtime_c__String__assign(&joint_state_msg.name.data[2], "omni_ball_2_joint");
+        rosidl_runtime_c__String__assign(&joint_state_msg.name.data[0], "omni_ball_1_joint");
+        rosidl_runtime_c__String__assign(&joint_state_msg.name.data[1], "omni_ball_2_joint");
+        rosidl_runtime_c__String__assign(&joint_state_msg.name.data[2], "omni_ball_3_joint");
 
         diagnostic_msgs__msg__DiagnosticArray__init(&diagnostics_msg);
         diagnostic_msgs__msg__DiagnosticStatus__Sequence__init(&diagnostics_msg.status, 1);
@@ -260,25 +291,29 @@ void StartDefaultTask(void const *argument)
 
         executor = rclc_executor_get_zero_initialized_executor();
         rclc_executor_init(&executor, &support.context, 3, &allocator);
-        rclc_executor_add_timer(&executor, &joint_state_timer);
-        rclc_executor_add_timer(&executor, &diagnostics_timer);
+
         rosidl_runtime_c__float__Sequence__init(&velocity_cmd_msg.data, 3);
+
         rclc_executor_add_subscription(&executor, &velocity_cmd_sub,
             &velocity_cmd_msg, &velocity_command_callback, ON_NEW_DATA);
 
-        //ping agent every 2 seconds
+        rclc_executor_add_timer(&executor, &joint_state_timer);
+        rclc_executor_add_timer(&executor, &diagnostics_timer);
+
+        //ping agent every 5 seconds
         uint32_t last_ping = HAL_GetTick();
+        last_cmd_time = HAL_GetTick();
         bool connected = true;
 
         while (connected) {
-            if (HAL_GetTick() - last_ping > 2000) {
+            if (HAL_GetTick() - last_ping > 5000) {
                 last_ping = HAL_GetTick();
                 if (rmw_uros_ping_agent(100, 1) != RMW_RET_OK) {
                     connected = false;
                 }
             }
-            rclc_executor_spin_some(&executor, RCL_MS_TO_NS(5));
-            osDelay(10);
+            rclc_executor_spin_some(&executor, RCL_MS_TO_NS(1));
+            osDelay(1);
         }
 
         // Connection lost — stop motors and blink
@@ -340,17 +375,13 @@ void StartControlTask(void const * argument)
     HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
     HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
 
-    uint32_t arr_m1 = __HAL_TIM_GET_AUTORELOAD(&htim1);
-    uint32_t arr_m2 = __HAL_TIM_GET_AUTORELOAD(&htim3);
-    uint32_t arr_m3 = __HAL_TIM_GET_AUTORELOAD(&htim4);
 
-    const float MAX_DUTY      = 0.30f;
     const float COUNTS_PER_REV = 4096.0f;
     const int ENCODER_CPR = 4096;
     const int ENCODER_HALF_CPR = 2048;
     const float TWO_PI_F = (2.0f * (float)M_PI);
     const float VELOCITY_FILTER_ALPHA = 0.2f;
-    const float DT            = 0.001f;
+    const float DT            = CONTROL_LOOP_PERIOD_MS / 1000.0f;
 
     // Prime encoders
     enc[0].prev_raw = Read_SSI(cs_enc_1_GPIO_Port, cs_enc_1_Pin, enc1_data_GPIO_Port, enc1_data_Pin);
@@ -369,9 +400,11 @@ void StartControlTask(void const * argument)
     	startup_counter++;
         // --- Command timeout ---
         if (HAL_GetTick() - last_cmd_time > CMD_TIMEOUT_MS) {
+        	taskENTER_CRITICAL();
             target_pwm[0] = 0.0f;
             target_pwm[1] = 0.0f;
             target_pwm[2] = 0.0f;
+            taskEXIT_CRITICAL();
         }
 
 
@@ -416,47 +449,65 @@ void StartControlTask(void const * argument)
                 (1.0f - VELOCITY_FILTER_ALPHA) * enc[i].velocity_rads +
                 VELOCITY_FILTER_ALPHA * raw_vel;
         }
-        static float prev_pwm[3] = {0.0f, 0.0f, 0.0f};
-        static uint32_t kick_until[3] = {0, 0, 0};
         // --- Motor drive ---
-        float mv1 = (float)target_pwm[0];
-        float mv2 = (float)target_pwm[1];
-        float mv3 = (float)target_pwm[2];
-        float *mv[3] = {&mv1, &mv2, &mv3};
+        float mv1, mv2, mv3;
+
+        taskENTER_CRITICAL();
+        mv1 = target_pwm[0];
+        mv2 = target_pwm[1];
+        mv3 = target_pwm[2];
+        taskEXIT_CRITICAL();
+
+        float mv[3] = {mv1, mv2, mv3};
+
+        static float prev_cmd[3] = {0.0f, 0.0f, 0.0f};
+        static uint8_t neg_prekick_active[3] = {0, 0, 0};
+        static uint32_t neg_prekick_until[3] = {0, 0, 0};
+
+        uint32_t now = HAL_GetTick();
 
         for (int i = 0; i < 3; i++) {
-            if (fabsf(prev_pwm[i]) < 0.01f && fabsf(*mv[i]) > 0.01f) {
-                kick_until[i] = HAL_GetTick() + 120;
+            float commanded = mv[i];
+
+            int was_stopped = fabsf(prev_cmd[i]) < DUTY_DEADZONE;
+            int wants_negative = commanded < -DUTY_DEADZONE;
+
+            if (was_stopped && wants_negative && !neg_prekick_active[i]) {
+                neg_prekick_active[i] = 1;
+                neg_prekick_until[i] = now + NEG_PREKICK_MS;
             }
 
-            if (HAL_GetTick() < kick_until[i]) {
-                *mv[i] = copysignf(0.40f, *mv[i]);
+            if (neg_prekick_active[i]) {
+                if (now < neg_prekick_until[i]) {
+                    mv[i] = NEG_PREKICK_DUTY;
+                } else {
+                    neg_prekick_active[i] = 0;
+                    mv[i] = commanded;
+                }
             }
 
-            prev_pwm[i] = target_pwm[i];
+            prev_cmd[i] = commanded;
         }
-        HAL_GPIO_WritePin(motor1.dir_port, motor1.dir_pin,
-            mv1 >= 0 ? GPIO_PIN_SET : GPIO_PIN_RESET);
-        HAL_GPIO_WritePin(motor1_nBRAKE_GPIO_Port, motor1_nBRAKE_Pin,
-            fabsf(mv1) > 0.01f ? GPIO_PIN_SET : GPIO_PIN_RESET);
-        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1,
-            (uint32_t)(fminf(fabsf(mv1), MAX_DUTY) * arr_m1));
 
-        HAL_GPIO_WritePin(motor2.dir_port, motor2.dir_pin,
-            mv2 >= 0 ? GPIO_PIN_SET : GPIO_PIN_RESET);
-        HAL_GPIO_WritePin(motor2_nBRAKE_GPIO_Port, motor2_nBRAKE_Pin,
-            fabsf(mv2) > 0.01f ? GPIO_PIN_SET : GPIO_PIN_RESET);
-        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1,
-            (uint32_t)(fminf(fabsf(mv2), MAX_DUTY) * arr_m2));
+        mv1 = mv[0];
+        mv2 = mv[1];
+        mv3 = mv[2];
 
-        HAL_GPIO_WritePin(motor3.dir_port, motor3.dir_pin,
-            mv3 >= 0 ? GPIO_PIN_SET : GPIO_PIN_RESET);
-        HAL_GPIO_WritePin(motor3_nBRAKE_GPIO_Port, motor3_nBRAKE_Pin,
-            fabsf(mv3) > 0.01f ? GPIO_PIN_SET : GPIO_PIN_RESET);
-        __HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_1,
-            (uint32_t)(fminf(fabsf(mv3), MAX_DUTY) * arr_m3));
+        Motor_SetDuty(&htim1, TIM_CHANNEL_1,
+            motor1.dir_port, motor1.dir_pin,
+            motor1_nBRAKE_GPIO_Port, motor1_nBRAKE_Pin,
+            mv1);
 
-        osDelay(1);
+        Motor_SetDuty(&htim3, TIM_CHANNEL_1,
+            motor2.dir_port, motor2.dir_pin,
+            motor2_nBRAKE_GPIO_Port, motor2_nBRAKE_Pin,
+            mv2);
+
+        Motor_SetDuty(&htim4, TIM_CHANNEL_1,
+            motor3.dir_port, motor3.dir_pin,
+            motor3_nBRAKE_GPIO_Port, motor3_nBRAKE_Pin,
+            mv3);
+        osDelay(CONTROL_LOOP_PERIOD_MS);
     }
 }
 
@@ -466,15 +517,17 @@ void StartControlTask(void const * argument)
 /* USER CODE BEGIN Application */
 void velocity_command_callback(const void * msgin)
 {
-    last_cmd_time = HAL_GetTick();
     const std_msgs__msg__Float32MultiArray * msg =
         (const std_msgs__msg__Float32MultiArray *)msgin;
 
     if (msg->data.size >= 3) {
     	taskENTER_CRITICAL();
-        target_pwm[2] = msg->data.data[0];
-        target_pwm[0] = msg->data.data[1];
-        target_pwm[1] = msg->data.data[2];
+        target_pwm[0] = msg->data.data[0];
+        target_pwm[1] = msg->data.data[1];
+        target_pwm[2] = msg->data.data[2];
+
+        last_cmd_time=HAL_GetTick();
+
         taskEXIT_CRITICAL();
     }
 }
@@ -498,47 +551,26 @@ void joint_state_timer_callback(rcl_timer_t * timer, int64_t last_call_time)
         if (dt <= 0.0f) dt = 0.01f;
 
         int32_t counts_now[3] = {
-            enc[2].accum_counts,  // Motor 3
             enc[0].accum_counts,  // Motor 1
-            enc[1].accum_counts   // Motor 2
+            enc[1].accum_counts,  // Motor 2
+            enc[2].accum_counts   // Motor 3
         };
 
-        joint_state_msg.velocity.data[0] =
-            -((float)(counts_now[0] - prev_pub_counts[0]) * COUNTS_TO_RAD / dt);
-        joint_state_msg.velocity.data[1] =
-            -((float)(counts_now[1] - prev_pub_counts[1]) * COUNTS_TO_RAD / dt);
-        joint_state_msg.velocity.data[2] =
-            ((float)(counts_now[2] - prev_pub_counts[2]) * COUNTS_TO_RAD / dt);
 
-        prev_pub_counts[0] = counts_now[0];
-        prev_pub_counts[1] = counts_now[1];
-        prev_pub_counts[2] = counts_now[2];
-		joint_state_msg.position.data[0] = -(float)enc[2].accum_counts * COUNTS_TO_RAD;
-		joint_state_msg.position.data[1] = -(float)enc[0].accum_counts * COUNTS_TO_RAD;
-		joint_state_msg.position.data[2] = -(float)enc[1].accum_counts * COUNTS_TO_RAD;
+        for (int i = 0; i < 3; i++) {
+            joint_state_msg.position.data[i] =
+                (float)counts_now[i] * COUNTS_TO_RAD;
 
-		// Velocity in rad/s
-		//joint_state_msg.velocity.data[0] = -enc[2].velocity_rads;
-		//joint_state_msg.velocity.data[1] = -enc[0].velocity_rads;
-		//joint_state_msg.velocity.data[2] = -enc[1].velocity_rads;
+            joint_state_msg.velocity.data[i] =
+                ((float)(counts_now[i] - prev_pub_counts[i]) * COUNTS_TO_RAD / dt);
 
-		joint_state_msg.effort.data[0] = sqrtf(
-		    (motor_current[2][0]*motor_current[2][0] +
-		     motor_current[2][1]*motor_current[2][1] +
-		     motor_current[2][2]*motor_current[2][2]) / 3.0f);
+            joint_state_msg.effort.data[i] = 0.0f;
 
-		joint_state_msg.effort.data[1] = sqrtf(
-		    (motor_current[0][0]*motor_current[0][0] +
-		     motor_current[0][1]*motor_current[0][1] +
-		     motor_current[0][2]*motor_current[0][2]) / 3.0f);
+            prev_pub_counts[i] = counts_now[i];
+        }
 
-		joint_state_msg.effort.data[2] = sqrtf(
-		    (motor_current[1][0]*motor_current[1][0] +
-		     motor_current[1][1]*motor_current[1][1] +
-		     motor_current[1][2]*motor_current[1][2]) / 3.0f);
-
-		rcl_ret_t ret = rcl_publish(&joint_state_pub, &joint_state_msg, NULL);
-		(void)ret;
+        rcl_ret_t ret = rcl_publish(&joint_state_pub, &joint_state_msg, NULL);
+        (void)ret;
     }
 }
 
