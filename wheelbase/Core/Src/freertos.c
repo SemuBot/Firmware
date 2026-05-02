@@ -27,6 +27,20 @@
 #define COUNTS_PER_REV  4096.0f
 #define TWO_PI          (2.0f * 3.14159265f)
 #define DT              (CONTROL_LOOP_PERIOD_MS / 1000.0f)
+#define MAX_DUTY              0.40f
+#define DUTY_DEADZONE         0.01f
+#define MIN_PWM               0.08f
+
+#define NEG_PREKICK_DUTY      0.15f
+#define NEG_PREKICK_MS        50
+#define CDC_RX_BUF_SIZE 128
+
+static char cdc_line_buf[CDC_RX_BUF_SIZE];
+static volatile uint16_t cdc_line_len = 0;
+
+static char cdc_cmd_buf[CDC_RX_BUF_SIZE];
+static volatile uint8_t cdc_cmd_ready = 0;
+
 
 extern motor_st motor1, motor2, motor3;
 extern DRV8353_Handle drv_motor1, drv_motor2, drv_motor3;
@@ -82,11 +96,29 @@ void vApplicationGetIdleTaskMemory(StaticTask_t **ppxIdleTaskTCBBuffer,
 
 void CDC_UserRxCallback(uint8_t *buf, uint32_t len)
 {
-    if (len < CDC_RX_BUF_SIZE && !cdc_rx_ready) {
-        memcpy(cdc_rx_buf, buf, len);
-        cdc_rx_buf[len] = '\0';
-        cdc_rx_len   = len;
-        cdc_rx_ready = 1;
+    for (uint32_t i = 0; i < len; i++) {
+        char c = (char)buf[i];
+
+        if (c == '\r') {
+            continue;
+        }
+
+        if (c == '\n') {
+            cdc_line_buf[cdc_line_len] = '\0';
+
+            if (!cdc_cmd_ready) {
+                memcpy(cdc_cmd_buf, cdc_line_buf, cdc_line_len + 1);
+                cdc_cmd_ready = 1;
+            }
+
+            cdc_line_len = 0;
+        } else {
+            if (cdc_line_len < CDC_RX_BUF_SIZE - 1) {
+                cdc_line_buf[cdc_line_len++] = c;
+            } else {
+                cdc_line_len = 0;
+            }
+        }
     }
 }
 
@@ -95,10 +127,12 @@ static void Parse_CDC_Command(const char *str)
     if (strncmp(str, "CMD:", 4) != 0) return;
     float vx, vy, omega;
     if (sscanf(str + 4, "%f,%f,%f", &vx, &vy, &omega) == 3) {
+    	taskENTER_CRITICAL();
         cmd_vx        = vx;
         cmd_vy        = vy;
         cmd_omega     = omega;
         cmd_last_tick = HAL_GetTick();
+        taskEXIT_CRITICAL();
     }
 }
 
@@ -211,9 +245,9 @@ void StartDefaultTask(void const *argument)
     uint32_t last_report = 0;
 
     for (;;) {
-        if (cdc_rx_ready) {
-            Parse_CDC_Command(cdc_rx_buf);
-            cdc_rx_ready = 0;
+        if (cdc_cmd_ready) {
+            Parse_CDC_Command(cdc_cmd_buf);
+            cdc_cmd_ready = 0;
         }
 
         uint32_t now = HAL_GetTick();
@@ -256,9 +290,9 @@ void StartControlTask(void const *argument)
     HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
     HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
 
-    PID_Init(&pid[0], 0.01f, 0.00f, 0.0f, -0.30f, 0.30f);
-    PID_Init(&pid[1], 0.01f, 0.00f, 0.0f, -0.30f, 0.30f);
-    PID_Init(&pid[2], 0.01f, 0.00f, 0.0f, -0.30f, 0.30f);
+    PID_Init(&pid[0], 0.01f, 0.00f, 0.0f, -MAX_DUTY, MAX_DUTY);
+    PID_Init(&pid[1], 0.01f, 0.00f, 0.0f, -MAX_DUTY, MAX_DUTY);
+    PID_Init(&pid[2], 0.01f, 0.00f, 0.0f, -MAX_DUTY, MAX_DUTY);
 
     // Prime encoders to avoid first-tick velocity spike
     enc[0].prev_raw = Read_SSI(cs_enc_1_GPIO_Port, cs_enc_1_Pin, enc1_data_GPIO_Port, enc1_data_Pin);
@@ -296,58 +330,95 @@ void StartControlTask(void const *argument)
                 ((float)delta_for_vel / COUNTS_PER_REV) * TWO_PI / DT;
         }
 
-        // --- Inverse kinematics ---
-        float vel_target[3] = {0};
+        float vx;
+        float vy;
+        float omega;
+
+        taskENTER_CRITICAL();
+        vx = cmd_vx;
+        vy = cmd_vy;
+        omega = cmd_omega;
+        taskEXIT_CRITICAL();
+
         uint32_t now = HAL_GetTick();
-        if (now - cmd_last_tick < CMD_TIMEOUT_MS) {
-            InvKinematics(cmd_vx, cmd_vy, cmd_omega, vel_target);
-        } else {
-            // Timeout — reset PID state
-            for (int i = 0; i < 3; i++) {
-                pid[i].integral   = 0.0f;
-                pid[i].prev_error = 0.0f;
-            }
+
+        if (now - cmd_last_tick >= CMD_TIMEOUT_MS) {
+            vx = 0.0f;
+            vy = 0.0f;
+            omega = 0.0f;
         }
 
-        // --- PID ---
-        float duty[3];
+        float duty[3] = {0.0f, 0.0f, 0.0f};
+
+
+        // Forward / backward
+        if (vx >= 0.0f) {
+            duty[0] =  0.533f * vx;
+            duty[1] =  0.533f * vx;
+            duty[2] = -1.333f * vx;
+        } else {
+            duty[0] =  0.500f * vx;
+            duty[1] =  0.500f * vx;
+            duty[2] = -0.750f * vx;
+        }
+
+        // Left / right
+        if (vy >= 0.0f) {
+            duty[0] += -0.667f * vy;
+            duty[1] +=  0.667f * vy;
+            duty[2] +=  0.167f * vy;
+        } else {
+            duty[0] += -0.667f * vy;
+            duty[1] +=  0.667f * vy;
+            duty[2] +=  0.333f * vy;
+        }
+
+        // Rotation
+        duty[0] += 0.50f * omega;
+        duty[1] += 0.50f * omega;
+        duty[2] += 0.50f * omega;
+
+        // Clamp
+        for (int i = 0; i < 3; i++) {
+            if (duty[i] > MAX_DUTY) duty[i] = MAX_DUTY;
+            if (duty[i] < -MAX_DUTY) duty[i] = -MAX_DUTY;
+        }
+
+
+        static float prev_cmd_duty[3] = {0.0f, 0.0f, 0.0f};
+        static uint8_t neg_prekick_active[3] = {0, 0, 0};
+        static uint32_t neg_prekick_until[3] = {0, 0, 0};
+
+        uint32_t now2 = HAL_GetTick();
 
         for (int i = 0; i < 3; i++) {
-            if (fabsf(vel_target[i]) < 0.01f) {
-                duty[i] = 0.0f;
-                pid[i].integral = 0.0f;
-                pid[i].prev_error = 0.0f;
-            } else {
-                float ff = vel_target[i] * 0.05f;
-                float corr = PID_Update(&pid[i], vel_target[i], enc[i].velocity_rads, DT);
+            float commanded = duty[i];
 
-                duty[i] = ff + corr;
+            int was_stopped = fabsf(prev_cmd_duty[i]) < DUTY_DEADZONE;
+            int wants_negative = commanded < -DUTY_DEADZONE;
 
-                if (duty[i] > 0.30f) duty[i] = 0.30f;
-                if (duty[i] < -0.30f) duty[i] = -0.30f;
+            if (was_stopped && wants_negative && !neg_prekick_active[i]) {
+                neg_prekick_active[i] = 1;
+                neg_prekick_until[i] = now2 + NEG_PREKICK_MS;
+            }
 
-                const float MIN_PWM = 0.30f;
-                if (fabsf(duty[i]) < MIN_PWM) {
-                    duty[i] = copysignf(MIN_PWM, duty[i]);
+            if (neg_prekick_active[i]) {
+                if (now2 < neg_prekick_until[i]) {
+                    duty[i] = NEG_PREKICK_DUTY;
+                } else {
+                    neg_prekick_active[i] = 0;
+                    duty[i] = commanded;
                 }
             }
+
+            if (fabsf(commanded) < DUTY_DEADZONE) {
+                neg_prekick_active[i] = 0;
+                neg_prekick_until[i] = 0;
+            }
+
+            prev_cmd_duty[i] = commanded;
         }
 
-
-		static float prev_duty_cmd[3] = {0.0f, 0.0f, 0.0f};
-		static uint32_t kick_until[3] = {0, 0, 0};
-
-		for (int i = 0; i < 3; i++) {
-			if (fabsf(prev_duty_cmd[i]) < 0.01f && fabsf(duty[i]) > 0.01f) {
-				kick_until[i] = HAL_GetTick() + 120;
-			}
-
-			if (HAL_GetTick() < kick_until[i]) {
-				duty[i] = copysignf(0.40f, duty[i]);
-			}
-
-			prev_duty_cmd[i] = duty[i];
-		}
         // --- Motor drive ---
         Motor_SetDuty(&htim1, TIM_CHANNEL_1,
             motor1.dir_port, motor1.dir_pin,
