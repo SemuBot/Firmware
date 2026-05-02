@@ -18,7 +18,11 @@
 
 /* USER CODE BEGIN PD */
 #define CONTROL_LOOP_PERIOD_MS  5
-#define STATE_REPORT_PERIOD_MS  10
+#define STATE_REPORT_PERIOD_MS  20
+#define MAX_DUTY      0.40f
+#define DUTY_DEADZONE 0.02f
+#define NEG_PREKICK_DUTY      0.10f
+#define NEG_PREKICK_MS        50
 
 char debug_msg[256];
 extern motor_st motor1, motor2, motor3;
@@ -47,9 +51,12 @@ encoder_state_t enc[3] = {0};
 
 // CDC receive buffer
 #define CDC_RX_BUF_SIZE 128
-static char cdc_rx_buf[CDC_RX_BUF_SIZE];
-static volatile uint16_t cdc_rx_len = 0;
-static volatile uint8_t  cdc_rx_ready = 0;
+
+static char cdc_line_buf[CDC_RX_BUF_SIZE];
+static volatile uint16_t cdc_line_len = 0;
+
+static char cdc_cmd_buf[CDC_RX_BUF_SIZE];
+static volatile uint8_t cdc_cmd_ready = 0;
 
 /* USER CODE END Variables */
 
@@ -77,20 +84,43 @@ void vApplicationGetIdleTaskMemory(StaticTask_t **ppxIdleTaskTCBBuffer,
 
 void CDC_UserRxCallback(uint8_t *buf, uint32_t len)
 {
-    if (len < CDC_RX_BUF_SIZE && !cdc_rx_ready) {
-        memcpy(cdc_rx_buf, buf, len);
-        cdc_rx_buf[len] = '\0';
-        cdc_rx_len   = len;
-        cdc_rx_ready = 1;
+    for (uint32_t i = 0; i < len; i++) {
+        char c = (char)buf[i];
+
+        if (c == '\r') {
+            continue;
+        }
+
+        if (c == '\n') {
+            cdc_line_buf[cdc_line_len] = '\0';
+
+            if (!cdc_cmd_ready) {
+                memcpy(cdc_cmd_buf, cdc_line_buf, cdc_line_len + 1);
+                cdc_cmd_ready = 1;
+            }
+
+            cdc_line_len = 0;
+        } else {
+            if (cdc_line_len < CDC_RX_BUF_SIZE - 1) {
+                cdc_line_buf[cdc_line_len++] = c;
+            } else {
+                cdc_line_len = 0;
+            }
+        }
     }
 }
 
 
 static void Parse_CDC_Command(const char *str)
 {
-    if (strncmp(str, "CMD:", 4) != 0) return;
+    if (strncmp(str, "CMD:", 4) != 0) {
+        return;
+    }
 
-    float v1, v2, v3;
+    float v1 = 0.0f;
+    float v2 = 0.0f;
+    float v3 = 0.0f;
+
     if (sscanf(str + 4, "%f,%f,%f", &v1, &v2, &v3) == 3) {
         motor_duty[0] = v1;
         motor_duty[1] = v2;
@@ -99,7 +129,6 @@ static void Parse_CDC_Command(const char *str)
     }
 }
 
-
 static void Motor_SetDuty(TIM_HandleTypeDef *htim, uint32_t channel,
                           GPIO_TypeDef *dir_port, uint16_t dir_pin,
                           GPIO_TypeDef *brake_port, uint16_t brake_pin,
@@ -107,19 +136,21 @@ static void Motor_SetDuty(TIM_HandleTypeDef *htim, uint32_t channel,
 {
     uint32_t arr = __HAL_TIM_GET_AUTORELOAD(htim);
 
-    if (fabsf(duty) < 0.01f) {
-        HAL_GPIO_WritePin(brake_port, brake_pin, GPIO_PIN_RESET);
+    if (fabsf(duty) < DUTY_DEADZONE) {
         __HAL_TIM_SET_COMPARE(htim, channel, 0);
+        HAL_GPIO_WritePin(brake_port, brake_pin, GPIO_PIN_SET);
         return;
     }
 
-    HAL_GPIO_WritePin(brake_port, brake_pin, GPIO_PIN_SET);
+    float clamped = fminf(fabsf(duty), MAX_DUTY);
+
     HAL_GPIO_WritePin(dir_port, dir_pin,
         duty >= 0.0f ? GPIO_PIN_SET : GPIO_PIN_RESET);
 
-    float clamped = fminf(fabsf(duty), 0.40f);
+    HAL_GPIO_WritePin(brake_port, brake_pin, GPIO_PIN_SET);
     __HAL_TIM_SET_COMPARE(htim, channel, (uint32_t)(clamped * arr));
 }
+
 
 
 uint16_t Read_SSI(GPIO_TypeDef *cs_port, uint16_t cs_pin,
@@ -166,16 +197,44 @@ void StartDefaultTask(void const *argument)
 
     char tx_buf[128];
     uint32_t last_report = 0;
-
+    uint32_t last_fault_check = 0;
     for (;;) {
         // Parse incoming command
-        if (cdc_rx_ready) {
-            Parse_CDC_Command(cdc_rx_buf);
-            cdc_rx_ready = 0;
-        }
-
-        // Send state
         uint32_t now = HAL_GetTick();
+
+        if (cdc_cmd_ready) {
+            Parse_CDC_Command(cdc_cmd_buf);
+            cdc_cmd_ready = 0;
+        }
+        if (now - last_fault_check >= 500) {
+            last_fault_check = now;
+
+            uint16_t f1 = 0, f2 = 0, f3 = 0;
+            uint16_t v1 = 0, v2 = 0, v3 = 0;
+
+            DRV8353_ReadRegister(&drv_motor1, DRV8353_REG_FAULT_STATUS_1, &f1);
+            DRV8353_ReadRegister(&drv_motor2, DRV8353_REG_FAULT_STATUS_1, &f2);
+            DRV8353_ReadRegister(&drv_motor3, DRV8353_REG_FAULT_STATUS_1, &f3);
+            DRV8353_ReadRegister(&drv_motor1, DRV8353_REG_VGS_STATUS_2, &v1);
+            DRV8353_ReadRegister(&drv_motor2, DRV8353_REG_VGS_STATUS_2, &v2);
+            DRV8353_ReadRegister(&drv_motor3, DRV8353_REG_VGS_STATUS_2, &v3);
+
+            snprintf(tx_buf, sizeof(tx_buf),
+                "FAULT:M1=%04X/%04X M2=%04X/%04X M3=%04X/%04X\n",
+                f1, v1, f2, v2, f3, v3);
+            CDC_Transmit_FS((uint8_t *)tx_buf, strlen(tx_buf));
+        	uint16_t ctrl = 0;
+        	DRV8353_ReadRegister(&drv_motor1, DRV8353_REG_DRIVER_CONTROL, &ctrl);
+        	DRV8353_WriteRegister(&drv_motor1, DRV8353_REG_DRIVER_CONTROL, ctrl | DRV8353_CLR_FLT);
+
+        	DRV8353_ReadRegister(&drv_motor2, DRV8353_REG_DRIVER_CONTROL, &ctrl);
+        	DRV8353_WriteRegister(&drv_motor2, DRV8353_REG_DRIVER_CONTROL, ctrl | DRV8353_CLR_FLT);
+
+        	DRV8353_ReadRegister(&drv_motor3, DRV8353_REG_DRIVER_CONTROL, &ctrl);
+        	DRV8353_WriteRegister(&drv_motor3, DRV8353_REG_DRIVER_CONTROL, ctrl | DRV8353_CLR_FLT);
+
+        }
+        // Send state
         if (now - last_report >= STATE_REPORT_PERIOD_MS) {
             last_report = now;
             snprintf(tx_buf, sizeof(tx_buf),
@@ -249,26 +308,36 @@ void StartControlTask(void const *argument)
             enc[i].velocity_rads =
                 ((float)delta_for_vel / COUNTS_PER_REV) * TWO_PI / DT;
         }
-
         uint32_t now = HAL_GetTick();
         float d0 = (now - cmd_last_tick < CMD_TIMEOUT_MS) ? motor_duty[0] : 0.0f;
         float d1 = (now - cmd_last_tick < CMD_TIMEOUT_MS) ? motor_duty[1] : 0.0f;
         float d2 = (now - cmd_last_tick < CMD_TIMEOUT_MS) ? motor_duty[2] : 0.0f;
-        static float prev_duty[3] = {0.0f, 0.0f, 0.0f};
-        static uint32_t kick_until[3] = {0, 0, 0};
-
         float d[3] = {d0, d1, d2};
+        static float prev_cmd[3] = {0.0f, 0.0f, 0.0f};
+        static uint8_t neg_prekick_active[3] = {0, 0, 0};
+        static uint32_t neg_prekick_until[3] = {0, 0, 0};
 
         for (int i = 0; i < 3; i++) {
-            if (fabsf(prev_duty[i]) < 0.01f && fabsf(d[i]) > 0.01f) {
-                kick_until[i] = HAL_GetTick() + 120;
+            float commanded = d[i];
+
+            int was_stopped = fabsf(prev_cmd[i]) < DUTY_DEADZONE;
+            int wants_negative = commanded < -DUTY_DEADZONE;
+
+            if (was_stopped && wants_negative && !neg_prekick_active[i]) {
+                neg_prekick_active[i] = 1;
+                neg_prekick_until[i] = now + NEG_PREKICK_MS;
             }
 
-            if (HAL_GetTick() < kick_until[i]) {
-                d[i] = copysignf(0.40f, d[i]);
+            if (neg_prekick_active[i]) {
+                if (now < neg_prekick_until[i]) {
+                    d[i] = NEG_PREKICK_DUTY;   // short positive kick
+                } else {
+                    neg_prekick_active[i] = 0;
+                    d[i] = commanded;          // now apply real negative command
+                }
             }
 
-            prev_duty[i] = d[i];
+            prev_cmd[i] = commanded;
         }
 
         Motor_SetDuty(&htim1, TIM_CHANNEL_1,
