@@ -69,7 +69,7 @@ volatile float motor_current[3][3] = {0};  // [motor][phase]
 static int32_t prev_pub_counts[3] = {0, 0, 0};
 static uint32_t prev_pub_tick = 0;
 
-#define MAX_DUTY              0.40f
+#define MAX_DUTY              0.80f
 #define DUTY_DEADZONE         0.01f
 #define NEG_PREKICK_DUTY      0.15f
 #define NEG_PREKICK_MS        50
@@ -85,18 +85,18 @@ extern DRV8353_Handle drv_motor1, drv_motor2, drv_motor3;
 /* USER CODE BEGIN PM */
 void velocity_command_callback(const void * msgin);
 void joint_state_timer_callback(rcl_timer_t * timer, int64_t last_call_time);
-void diagnostics_timer_callback(rcl_timer_t * timer, int64_t last_call_time);
+//void diagnostics_timer_callback(rcl_timer_t * timer, int64_t last_call_time);
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
-volatile float target_pwm[3] = {0.0f, 0.0f, 0.0f};
+volatile float target_duty[3] = {0.0f, 0.0f, 0.0f};
 
 /* USER CODE END Variables */
 rcl_node_t node;
 rclc_support_t support;
 rcl_publisher_t joint_state_pub;
-rcl_publisher_t diagnostics_pub;
+//rcl_publisher_t diagnostics_pub;
 sensor_msgs__msg__JointState joint_state_msg;
 
 rcl_subscription_t velocity_cmd_sub;
@@ -105,11 +105,11 @@ std_msgs__msg__Float32MultiArray velocity_cmd_msg;
 
 // Timer handles
 rcl_timer_t joint_state_timer;
-rcl_timer_t diagnostics_timer;
+//rcl_timer_t diagnostics_timer;
 
 // Diagnostic messages
-diagnostic_msgs__msg__DiagnosticArray diagnostics_msg;
-char g_debug_msg[128] = "init";
+//diagnostic_msgs__msg__DiagnosticArray diagnostics_msg;
+//char g_debug_msg[128] = "init";
 volatile uint32_t last_cmd_time = 0;
 /* USER CODE END Variables */
 osThreadId defaultTaskHandle;
@@ -189,9 +189,9 @@ void uros_fini_all(void)
     rcl_ret_t ret; // Suppressing compiler warnings
     ret = rcl_subscription_fini(&velocity_cmd_sub, &node); (void)ret;
     ret = rcl_publisher_fini(&joint_state_pub, &node);     (void)ret;
-    ret = rcl_publisher_fini(&diagnostics_pub, &node);     (void)ret;
+    //ret = rcl_publisher_fini(&diagnostics_pub, &node);     (void)ret;
     ret = rcl_timer_fini(&joint_state_timer);              (void)ret;
-    ret = rcl_timer_fini(&diagnostics_timer);              (void)ret;
+    //ret = rcl_timer_fini(&diagnostics_timer);              (void)ret;
     ret = rclc_executor_fini(&executor);                   (void)ret;
     ret = rcl_node_fini(&node);                            (void)ret;
     rclc_support_fini(&support);
@@ -264,6 +264,7 @@ void StartDefaultTask(void const *argument)
         rosidl_runtime_c__String__assign(&joint_state_msg.name.data[1], "omni_ball_2_joint");
         rosidl_runtime_c__String__assign(&joint_state_msg.name.data[2], "omni_ball_3_joint");
 
+        /*
         diagnostic_msgs__msg__DiagnosticArray__init(&diagnostics_msg);
         diagnostic_msgs__msg__DiagnosticStatus__Sequence__init(&diagnostics_msg.status, 1);
         diagnostic_msgs__msg__DiagnosticStatus__init(&diagnostics_msg.status.data[0]);
@@ -278,19 +279,19 @@ void StartDefaultTask(void const *argument)
         rosidl_runtime_c__String__assign(&diagnostics_msg.status.data[0].values.data[0].value, "0x00");
         rosidl_runtime_c__String__assign(&diagnostics_msg.status.data[0].values.data[1].key, "uptime_ms");
         rosidl_runtime_c__String__assign(&diagnostics_msg.status.data[0].values.data[1].value, "0");
-
+        */
         rclc_publisher_init_default(&joint_state_pub, &node,
             ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, JointState), "motor_states");
-        rclc_publisher_init_default(&diagnostics_pub, &node,
-            ROSIDL_GET_MSG_TYPE_SUPPORT(diagnostic_msgs, msg, DiagnosticArray), "diagnostics");
+        //rclc_publisher_init_default(&diagnostics_pub, &node,
+        //    ROSIDL_GET_MSG_TYPE_SUPPORT(diagnostic_msgs, msg, DiagnosticArray), "diagnostics");
 
         rclc_timer_init_default2(&joint_state_timer, &support,
             RCL_MS_TO_NS(JOINT_STATE_PERIOD_MS), joint_state_timer_callback, true);
-        rclc_timer_init_default2(&diagnostics_timer, &support,
-            RCL_MS_TO_NS(DIAGNOSTICS_PERIOD_MS), diagnostics_timer_callback, true);
+        //rclc_timer_init_default2(&diagnostics_timer, &support,
+        //    RCL_MS_TO_NS(DIAGNOSTICS_PERIOD_MS), diagnostics_timer_callback, true);
 
         executor = rclc_executor_get_zero_initialized_executor();
-        rclc_executor_init(&executor, &support.context, 3, &allocator);
+        rclc_executor_init(&executor, &support.context, 2, &allocator);
 
         rosidl_runtime_c__float__Sequence__init(&velocity_cmd_msg.data, 3);
 
@@ -298,7 +299,7 @@ void StartDefaultTask(void const *argument)
             &velocity_cmd_msg, &velocity_command_callback, ON_NEW_DATA);
 
         rclc_executor_add_timer(&executor, &joint_state_timer);
-        rclc_executor_add_timer(&executor, &diagnostics_timer);
+        //rclc_executor_add_timer(&executor, &diagnostics_timer);
 
         //ping agent every 5 seconds
         uint32_t last_ping = HAL_GetTick();
@@ -306,20 +307,22 @@ void StartDefaultTask(void const *argument)
         bool connected = true;
 
         while (connected) {
+        	/*
             if (HAL_GetTick() - last_ping > 5000) {
                 last_ping = HAL_GetTick();
                 if (rmw_uros_ping_agent(100, 1) != RMW_RET_OK) {
                     connected = false;
                 }
             }
+            */
             rclc_executor_spin_some(&executor, RCL_MS_TO_NS(1));
             osDelay(1);
         }
 
         // Connection lost — stop motors and blink
-        target_pwm[0] = 0.0f;
-        target_pwm[1] = 0.0f;
-        target_pwm[2] = 0.0f;
+        target_duty[0] = 0.0f;
+        target_duty[1] = 0.0f;
+        target_duty[2] = 0.0f;
         HAL_GPIO_WritePin(debug_GPIO_Port, debug_Pin, GPIO_PIN_RESET);
 
         // Clean up
@@ -401,9 +404,9 @@ void StartControlTask(void const * argument)
         // --- Command timeout ---
         if (HAL_GetTick() - last_cmd_time > CMD_TIMEOUT_MS) {
         	taskENTER_CRITICAL();
-            target_pwm[0] = 0.0f;
-            target_pwm[1] = 0.0f;
-            target_pwm[2] = 0.0f;
+            target_duty[0] = 0.0f;
+            target_duty[1] = 0.0f;
+            target_duty[2] = 0.0f;
             taskEXIT_CRITICAL();
         }
 
@@ -453,9 +456,9 @@ void StartControlTask(void const * argument)
         float mv1, mv2, mv3;
 
         taskENTER_CRITICAL();
-        mv1 = target_pwm[0];
-        mv2 = target_pwm[1];
-        mv3 = target_pwm[2];
+        mv1 = target_duty[0];
+        mv2 = target_duty[1];
+        mv3 = target_duty[2];
         taskEXIT_CRITICAL();
 
         float mv[3] = {mv1, mv2, mv3};
@@ -522,9 +525,9 @@ void velocity_command_callback(const void * msgin)
 
     if (msg->data.size >= 3) {
     	taskENTER_CRITICAL();
-        target_pwm[0] = msg->data.data[0];
-        target_pwm[1] = msg->data.data[1];
-        target_pwm[2] = msg->data.data[2];
+        target_duty[0] = msg->data.data[0];
+        target_duty[1] = msg->data.data[1];
+        target_duty[2] = msg->data.data[2];
 
         last_cmd_time=HAL_GetTick();
 
@@ -561,8 +564,7 @@ void joint_state_timer_callback(rcl_timer_t * timer, int64_t last_call_time)
             joint_state_msg.position.data[i] =
                 (float)counts_now[i] * COUNTS_TO_RAD;
 
-            joint_state_msg.velocity.data[i] =
-                ((float)(counts_now[i] - prev_pub_counts[i]) * COUNTS_TO_RAD / dt);
+            joint_state_msg.velocity.data[i] = enc[i].velocity_rads;
 
             joint_state_msg.effort.data[i] = 0.0f;
 
@@ -575,7 +577,7 @@ void joint_state_timer_callback(rcl_timer_t * timer, int64_t last_call_time)
 }
 
 
-
+/*
 void diagnostics_timer_callback(rcl_timer_t * timer, int64_t last_call_time)
 {
     (void)timer;
@@ -590,14 +592,14 @@ void diagnostics_timer_callback(rcl_timer_t * timer, int64_t last_call_time)
     uint16_t motor_errors = fault1 | fault2 | fault3;
     diagnostics_msg.status.data[0].level = (motor_errors & DRV8353_FAULT) ? 2 : 0;
     // Stop motors if any fault detected
-    /*
+    
     if (motor_errors & DRV8353_FAULT) {
-        target_pwm[0] = 0.0f;
-        target_pwm[1] = 0.0f;
-        target_pwm[2] = 0.0f;
-    }*/
+        target_duty[0] = 0.0f;
+        target_duty[1] = 0.0f;
+        target_duty[2] = 0.0f;
+    }
     snprintf(g_debug_msg, sizeof(g_debug_msg), "PWM:%.2f %.2f %.2f enc:%ld %ld %ld",
-             target_pwm[0], target_pwm[1], target_pwm[2],
+             target_duty[0], target_duty[1], target_duty[2],
              enc[0].accum_counts, enc[1].accum_counts, enc[2].accum_counts);
     char buffer[32];
     snprintf(buffer, sizeof(buffer), "0x%04X", motor_errors);
@@ -617,6 +619,6 @@ void diagnostics_timer_callback(rcl_timer_t * timer, int64_t last_call_time)
     rcl_ret_t ret = rcl_publish(&diagnostics_pub, &diagnostics_msg, NULL);
     (void)ret;
 }
-
+*/
 /* USER CODE END Application */
 
