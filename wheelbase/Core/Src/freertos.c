@@ -66,13 +66,12 @@ typedef struct {
 
 static encoder_state_t enc[3] = {0};
 volatile float motor_current[3][3] = {0};  // [motor][phase]
-static int32_t prev_pub_counts[3] = {0, 0, 0};
-static uint32_t prev_pub_tick = 0;
+
 
 #define MAX_DUTY              0.80f
 #define DUTY_DEADZONE         0.01f
-#define NEG_PREKICK_DUTY      0.15f
-#define NEG_PREKICK_MS        50
+#define NEG_PREKICK_DUTY      0.10f
+#define NEG_PREKICK_MS        30
 #define CMD_TIMEOUT_MS 		  800
 
 
@@ -434,6 +433,9 @@ void StartControlTask(void const * argument)
             if (delta >= -1 && delta <= 1) {
                 delta = 0;
             }
+            delta = -delta;
+
+
             enc[i].accum_counts += delta;
             enc[i].prev_raw = raw[i];
 
@@ -540,6 +542,13 @@ void joint_state_timer_callback(rcl_timer_t * timer, int64_t last_call_time)
 {
     (void)last_call_time;
     if (timer != NULL) {
+    	uint16_t fault1 = 0;
+    	uint16_t fault2 = 0;
+    	uint16_t fault3 = 0;
+
+    	DRV8353_ReadRegister(&drv_motor1, DRV8353_REG_FAULT_STATUS_1, &fault1);
+    	DRV8353_ReadRegister(&drv_motor2, DRV8353_REG_FAULT_STATUS_1, &fault2);
+    	DRV8353_ReadRegister(&drv_motor3, DRV8353_REG_FAULT_STATUS_1, &fault3);
         const float COUNTS_TO_RAD = 2.0f * (float)M_PI / 4096.0f;
 
         uint32_t tick = HAL_GetTick();
@@ -547,28 +556,29 @@ void joint_state_timer_callback(rcl_timer_t * timer, int64_t last_call_time)
         joint_state_msg.header.stamp.nanosec = (tick % 1000) * 1000000;
 
 
-         tick = HAL_GetTick();
-        float dt = (prev_pub_tick == 0) ? 0.01f : (float)(tick - prev_pub_tick) / 1000.0f;
-        prev_pub_tick = tick;
+        int32_t counts_now[3];
+        float vel_now[3];
 
-        if (dt <= 0.0f) dt = 0.01f;
-
-        int32_t counts_now[3] = {
-            enc[0].accum_counts,  // Motor 1
-            enc[1].accum_counts,  // Motor 2
-            enc[2].accum_counts   // Motor 3
-        };
+        taskENTER_CRITICAL();
+        for (int i = 0; i < 3; i++) {
+            counts_now[i] = enc[i].accum_counts;
+            vel_now[i] = enc[i].velocity_rads;
+        }
+        taskEXIT_CRITICAL();
 
 
         for (int i = 0; i < 3; i++) {
             joint_state_msg.position.data[i] =
                 (float)counts_now[i] * COUNTS_TO_RAD;
 
-            joint_state_msg.velocity.data[i] = enc[i].velocity_rads;
+            if (fabsf(vel_now[i]) < 0.001f) {
+                vel_now[i] = 0.0f;
+            }
 
-            joint_state_msg.effort.data[i] = 0.0f;
-
-            prev_pub_counts[i] = counts_now[i];
+            joint_state_msg.velocity.data[i] = vel_now[i];
+            joint_state_msg.effort.data[0] = (double)fault1;
+            joint_state_msg.effort.data[1] = (double)fault2;
+            joint_state_msg.effort.data[2] = (double)fault3;
         }
 
         rcl_ret_t ret = rcl_publish(&joint_state_pub, &joint_state_msg, NULL);
