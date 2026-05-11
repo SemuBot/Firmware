@@ -197,7 +197,7 @@ int main(void)
   uint16_t driver_ctrl = 0x0040;
   uint16_t gate_hs_ctrl = 0x0300;
   uint16_t gate_ls_ctrl = 0x0300;
-  uint16_t ocp_ctrl = 0x0129;
+  uint16_t ocp_ctrl = 0x012D;
   uint16_t csa_ctrl = 0x0123;
 
   // M1

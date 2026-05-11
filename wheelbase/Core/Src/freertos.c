@@ -66,13 +66,16 @@ typedef struct {
 
 static encoder_state_t enc[3] = {0};
 volatile float motor_current[3][3] = {0};  // [motor][phase]
+volatile float debug_applied_duty[3] = {0.0f, 0.0f, 0.0f};
+volatile float debug_target_duty[3] = {0.0f, 0.0f, 0.0f};
+volatile uint32_t debug_ms_since_cmd = 0;
+volatile uint8_t debug_timeout_active = 0;
 
-
-#define MAX_DUTY              0.80f
+#define MAX_DUTY              0.65f
 #define DUTY_DEADZONE         0.01f
 #define NEG_PREKICK_DUTY      0.10f
 #define NEG_PREKICK_MS        30
-#define CMD_TIMEOUT_MS 		  800
+#define CMD_TIMEOUT_MS 		  1000
 
 
 char debug_msg[256];
@@ -401,13 +404,17 @@ void StartControlTask(void const * argument)
     	static int startup_counter = 0;
     	startup_counter++;
         // --- Command timeout ---
-        if (HAL_GetTick() - last_cmd_time > CMD_TIMEOUT_MS) {
-        	taskENTER_CRITICAL();
-            target_duty[0] = 0.0f;
-            target_duty[1] = 0.0f;
-            target_duty[2] = 0.0f;
-            taskEXIT_CRITICAL();
-        }
+    	debug_ms_since_cmd = HAL_GetTick() - last_cmd_time;
+    	debug_timeout_active = debug_ms_since_cmd > CMD_TIMEOUT_MS;
+
+    	/*
+    	if (debug_timeout_active) {
+    	    taskENTER_CRITICAL();
+    	    target_duty[0] = 0.0f;
+    	    target_duty[1] = 0.0f;
+    	    target_duty[2] = 0.0f;
+    	    taskEXIT_CRITICAL();
+    	}*/
 
 
 
@@ -462,6 +469,11 @@ void StartControlTask(void const * argument)
         mv2 = target_duty[1];
         mv3 = target_duty[2];
         taskEXIT_CRITICAL();
+        if (debug_timeout_active) {
+            mv1 = 0.0f;
+            mv2 = 0.0f;
+            mv3 = 0.0f;
+        }
 
         float mv[3] = {mv1, mv2, mv3};
 
@@ -497,6 +509,13 @@ void StartControlTask(void const * argument)
         mv1 = mv[0];
         mv2 = mv[1];
         mv3 = mv[2];
+        debug_target_duty[0] = target_duty[0];
+        debug_target_duty[1] = target_duty[1];
+        debug_target_duty[2] = target_duty[2];
+
+        debug_applied_duty[0] = mv1;
+        debug_applied_duty[1] = mv2;
+        debug_applied_duty[2] = mv3;
 
         Motor_SetDuty(&htim1, TIM_CHANNEL_1,
             motor1.dir_port, motor1.dir_pin,
@@ -575,10 +594,13 @@ void joint_state_timer_callback(rcl_timer_t * timer, int64_t last_call_time)
                 vel_now[i] = 0.0f;
             }
 
+            uint32_t ms_since_cmd = HAL_GetTick() - last_cmd_time;
+            uint8_t timeout_active = ms_since_cmd > CMD_TIMEOUT_MS;
+
             joint_state_msg.velocity.data[i] = vel_now[i];
-            joint_state_msg.effort.data[0] = (double)fault1;
-            joint_state_msg.effort.data[1] = (double)fault2;
-            joint_state_msg.effort.data[2] = (double)fault3;
+            joint_state_msg.effort.data[0] = (double)debug_applied_duty[0];
+            joint_state_msg.effort.data[1] = (double)debug_ms_since_cmd;
+            joint_state_msg.effort.data[2] = (double)debug_timeout_active;
         }
 
         rcl_ret_t ret = rcl_publish(&joint_state_pub, &joint_state_msg, NULL);
