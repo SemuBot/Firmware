@@ -63,9 +63,9 @@ void MX_GPIO_Init(void)
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     HAL_GPIO_Init(SSI_DATA_GPIO_Port, &GPIO_InitStruct);
 
-    HAL_GPIO_WritePin(GPIOA, motor2_nBRAKE_Pin|motor2_Cs_Pin|motor1_Cs_Pin|MCU_CS_Pin|motor3_nBRAKE_Pin, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(GPIOA, motor2_nBRAKE_Pin|motor2_Cs_Pin|motor1_Cs_Pin|MCU_CS_Pin, GPIO_PIN_RESET);
 
-    HAL_GPIO_WritePin(GPIOB, motor3_Cs_Pin|enable_Pin|motor1_nBRAKE_Pin, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(GPIOB, motor3_Cs_Pin|enable_Pin|motor1_nBRAKE_Pin|motor3_nBRAKE_Pin, GPIO_PIN_RESET);
 
     HAL_GPIO_WritePin(GPIOC, debug_Pin|motor3_dir_Pin|motor1_dir_Pin|motor2_dir_Pin, GPIO_PIN_RESET);
 
@@ -73,15 +73,13 @@ void MX_GPIO_Init(void)
     HAL_GPIO_WritePin(motor2_adc_GPIO_Port, motor2_adc_Pin, GPIO_PIN_SET);
     HAL_GPIO_WritePin(motor3_adc_GPIO_Port, motor3_adc_Pin, GPIO_PIN_SET);
 
-    GPIO_InitStruct.Pin   = motor2_nBRAKE_Pin|motor2_Cs_Pin|motor1_Cs_Pin|MCU_CS_Pin|motor1_adc_Pin| motor2_adc_Pin|motor3_nBRAKE_Pin;
+    GPIO_InitStruct.Pin   = motor2_nBRAKE_Pin|motor2_Cs_Pin|motor1_Cs_Pin|MCU_CS_Pin|motor1_adc_Pin| motor2_adc_Pin;
     GPIO_InitStruct.Mode  = GPIO_MODE_OUTPUT_PP;
     GPIO_InitStruct.Pull  = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-    //GPIO_InitStruct.Pin   = motor3_Cs_Pin|enable_Pin|motor1_nBRAKE_Pin|motor3_nBRAKE_Pin|motor3_adc_Pin;
-    GPIO_InitStruct.Pin   = motor3_Cs_Pin|enable_Pin|motor1_nBRAKE_Pin|motor3_adc_Pin;
-
+    GPIO_InitStruct.Pin   = motor3_Cs_Pin|enable_Pin|motor1_nBRAKE_Pin|motor3_nBRAKE_Pin|motor3_adc_Pin;
     GPIO_InitStruct.Mode  = GPIO_MODE_OUTPUT_PP;
     GPIO_InitStruct.Pull  = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
