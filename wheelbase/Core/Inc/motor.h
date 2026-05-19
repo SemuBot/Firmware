@@ -21,7 +21,6 @@ typedef struct {
     GPIO_TypeDef *pwm_port;                  // PWM GPIO port
     uint16_t pwm_pin;                        // PWM GPIO pin
     float duty_cycle;                        // Current duty cycle (-100 to +100)
-    uint8_t duty_cycle_limit;                // Maximum duty cycle limit
     DRV8353_Handle *drv_handle;              // DRV8353 driver handle
 } motor_st;
 

@@ -53,34 +53,34 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
+/** Control loop period in milliseconds (200 Hz). */
 #define CONTROL_LOOP_PERIOD_MS 5
+
+/** JointState publish period in milliseconds (10 Hz). */
 #define JOINT_STATE_PERIOD_MS 100
-#define DIAGNOSTICS_PERIOD_MS 1000
+
+#define CMD_TIMEOUT_MS 		  1000
+
+#define MAX_DUTY              0.50f
+#define DUTY_DEADZONE         0.01f
+#define NEG_PREKICK_DUTY      0.10f
+#define NEG_PREKICK_MS        30
 
 typedef struct {
     uint16_t prev_raw;
     int32_t  accum_counts;
-    int32_t  accum_prev;
     float    velocity_rads;
 } encoder_state_t;
 
+volatile float target_duty[3] = {0.0f, 0.0f, 0.0f};
+
+
 static encoder_state_t enc[3] = {0};
-volatile float motor_current[3][3] = {0};  // [motor][phase]
 volatile float debug_applied_duty[3] = {0.0f, 0.0f, 0.0f};
 volatile float debug_target_duty[3] = {0.0f, 0.0f, 0.0f};
 volatile uint32_t debug_ms_since_cmd = 0;
 volatile uint8_t debug_timeout_active = 0;
 
-#define MAX_DUTY              0.65f
-#define DUTY_DEADZONE         0.01f
-#define NEG_PREKICK_DUTY      0.10f
-#define NEG_PREKICK_MS        30
-#define CMD_TIMEOUT_MS 		  1000
-
-
-char debug_msg[256];
-extern motor_st motor1, motor2, motor3;
-extern DRV8353_Handle drv_motor1, drv_motor2, drv_motor3;
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -92,13 +92,11 @@ void joint_state_timer_callback(rcl_timer_t * timer, int64_t last_call_time);
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
-volatile float target_duty[3] = {0.0f, 0.0f, 0.0f};
 
 /* USER CODE END Variables */
 rcl_node_t node;
 rclc_support_t support;
 rcl_publisher_t joint_state_pub;
-//rcl_publisher_t diagnostics_pub;
 sensor_msgs__msg__JointState joint_state_msg;
 
 rcl_subscription_t velocity_cmd_sub;
@@ -120,6 +118,9 @@ osThreadId controlTaskHandle;
 /* USER CODE BEGIN FunctionPrototypes */
 
 /* USER CODE END FunctionPrototypes */
+extern motor_st motor1, motor2, motor3;
+extern DRV8353_Handle drv_motor1, drv_motor2, drv_motor3;
+
 
 void StartDefaultTask(void const * argument);
 void StartControlTask(void const * argument);
@@ -191,9 +192,7 @@ void uros_fini_all(void)
     rcl_ret_t ret; // Suppressing compiler warnings
     ret = rcl_subscription_fini(&velocity_cmd_sub, &node); (void)ret;
     ret = rcl_publisher_fini(&joint_state_pub, &node);     (void)ret;
-    //ret = rcl_publisher_fini(&diagnostics_pub, &node);     (void)ret;
     ret = rcl_timer_fini(&joint_state_timer);              (void)ret;
-    //ret = rcl_timer_fini(&diagnostics_timer);              (void)ret;
     ret = rclc_executor_fini(&executor);                   (void)ret;
     ret = rcl_node_fini(&node);                            (void)ret;
     rclc_support_fini(&support);
@@ -266,32 +265,10 @@ void StartDefaultTask(void const *argument)
         rosidl_runtime_c__String__assign(&joint_state_msg.name.data[1], "omni_ball_2_joint");
         rosidl_runtime_c__String__assign(&joint_state_msg.name.data[2], "omni_ball_3_joint");
 
-        /*
-        diagnostic_msgs__msg__DiagnosticArray__init(&diagnostics_msg);
-        diagnostic_msgs__msg__DiagnosticStatus__Sequence__init(&diagnostics_msg.status, 1);
-        diagnostic_msgs__msg__DiagnosticStatus__init(&diagnostics_msg.status.data[0]);
-        diagnostics_msg.status.data[0].level = 0;
-        rosidl_runtime_c__String__assign(&diagnostics_msg.status.data[0].name, "__heartbeat__");
-        rosidl_runtime_c__String__assign(&diagnostics_msg.status.data[0].message, "System OK");
-        rosidl_runtime_c__String__assign(&diagnostics_msg.status.data[0].hardware_id, "wheelbase");
-        diagnostic_msgs__msg__KeyValue__Sequence__init(&diagnostics_msg.status.data[0].values, 2);
-        for (int i = 0; i < 2; i++)
-            diagnostic_msgs__msg__KeyValue__init(&diagnostics_msg.status.data[0].values.data[i]);
-        rosidl_runtime_c__String__assign(&diagnostics_msg.status.data[0].values.data[0].key, "motor_errors");
-        rosidl_runtime_c__String__assign(&diagnostics_msg.status.data[0].values.data[0].value, "0x00");
-        rosidl_runtime_c__String__assign(&diagnostics_msg.status.data[0].values.data[1].key, "uptime_ms");
-        rosidl_runtime_c__String__assign(&diagnostics_msg.status.data[0].values.data[1].value, "0");
-        */
         rclc_publisher_init_default(&joint_state_pub, &node,
             ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, JointState), "motor_states");
-        //rclc_publisher_init_default(&diagnostics_pub, &node,
-        //    ROSIDL_GET_MSG_TYPE_SUPPORT(diagnostic_msgs, msg, DiagnosticArray), "diagnostics");
-
         rclc_timer_init_default2(&joint_state_timer, &support,
             RCL_MS_TO_NS(JOINT_STATE_PERIOD_MS), joint_state_timer_callback, true);
-        //rclc_timer_init_default2(&diagnostics_timer, &support,
-        //    RCL_MS_TO_NS(DIAGNOSTICS_PERIOD_MS), diagnostics_timer_callback, true);
-
         executor = rclc_executor_get_zero_initialized_executor();
         rclc_executor_init(&executor, &support.context, 2, &allocator);
 
@@ -301,10 +278,8 @@ void StartDefaultTask(void const *argument)
             &velocity_cmd_msg, &velocity_command_callback, ON_NEW_DATA);
 
         rclc_executor_add_timer(&executor, &joint_state_timer);
-        //rclc_executor_add_timer(&executor, &diagnostics_timer);
 
         //ping agent every 5 seconds
-        uint32_t last_ping = HAL_GetTick();
         last_cmd_time = HAL_GetTick();
         bool connected = true;
 
@@ -396,7 +371,6 @@ void StartControlTask(void const * argument)
     for (int i = 0; i < 3; i++) {
         enc[i].velocity_rads = 0.0f;
         enc[i].accum_counts = 0;
-        enc[i].accum_prev = 0;
     }
 
     for (;;)
@@ -407,14 +381,6 @@ void StartControlTask(void const * argument)
     	debug_ms_since_cmd = HAL_GetTick() - last_cmd_time;
     	debug_timeout_active = debug_ms_since_cmd > CMD_TIMEOUT_MS;
 
-    	/*
-    	if (debug_timeout_active) {
-    	    taskENTER_CRITICAL();
-    	    target_duty[0] = 0.0f;
-    	    target_duty[1] = 0.0f;
-    	    target_duty[2] = 0.0f;
-    	    taskEXIT_CRITICAL();
-    	}*/
 
 
 
@@ -434,6 +400,7 @@ void StartControlTask(void const * argument)
             } else if (delta < -ENCODER_HALF_CPR) {
                 delta += ENCODER_CPR;
             }
+            // Discard large deltas, e.g. SPI glitches
             if (delta > 1000 || delta < -1000) {
                 delta = 0;
             }
@@ -483,6 +450,7 @@ void StartControlTask(void const * argument)
 
         uint32_t now = HAL_GetTick();
 
+        // When motor goes from rest to a negative duty cycle, it needs a litle kick. So a forward pulse is sent first and then negative
         for (int i = 0; i < 3; i++) {
             float commanded = mv[i];
 
@@ -594,13 +562,11 @@ void joint_state_timer_callback(rcl_timer_t * timer, int64_t last_call_time)
                 vel_now[i] = 0.0f;
             }
 
-            uint32_t ms_since_cmd = HAL_GetTick() - last_cmd_time;
-            uint8_t timeout_active = ms_since_cmd > CMD_TIMEOUT_MS;
 
             joint_state_msg.velocity.data[i] = vel_now[i];
-            joint_state_msg.effort.data[0] = (double)debug_applied_duty[0];
-            joint_state_msg.effort.data[1] = (double)debug_ms_since_cmd;
-            joint_state_msg.effort.data[2] = (double)debug_timeout_active;
+            joint_state_msg.effort.data[0] = (double)fault1;
+            joint_state_msg.effort.data[1] = (double)fault2;
+            joint_state_msg.effort.data[2] = (double)fault3;
         }
 
         rcl_ret_t ret = rcl_publish(&joint_state_pub, &joint_state_msg, NULL);
@@ -609,48 +575,6 @@ void joint_state_timer_callback(rcl_timer_t * timer, int64_t last_call_time)
 }
 
 
-/*
-void diagnostics_timer_callback(rcl_timer_t * timer, int64_t last_call_time)
-{
-    (void)timer;
-    (void)last_call_time;
 
-    uint32_t uptime_ms = HAL_GetTick();
-    uint16_t fault1 = 0, fault2 = 0, fault3 = 0;
-    DRV8353_ReadRegister(&drv_motor1, DRV8353_REG_FAULT_STATUS_1, &fault1);
-    DRV8353_ReadRegister(&drv_motor2, DRV8353_REG_FAULT_STATUS_1, &fault2);
-    DRV8353_ReadRegister(&drv_motor3, DRV8353_REG_FAULT_STATUS_1, &fault3);
-
-    uint16_t motor_errors = fault1 | fault2 | fault3;
-    diagnostics_msg.status.data[0].level = (motor_errors & DRV8353_FAULT) ? 2 : 0;
-    // Stop motors if any fault detected
-    
-    if (motor_errors & DRV8353_FAULT) {
-        target_duty[0] = 0.0f;
-        target_duty[1] = 0.0f;
-        target_duty[2] = 0.0f;
-    }
-    snprintf(g_debug_msg, sizeof(g_debug_msg), "PWM:%.2f %.2f %.2f enc:%ld %ld %ld",
-             target_duty[0], target_duty[1], target_duty[2],
-             enc[0].accum_counts, enc[1].accum_counts, enc[2].accum_counts);
-    char buffer[32];
-    snprintf(buffer, sizeof(buffer), "0x%04X", motor_errors);
-    rosidl_runtime_c__String__assign(&diagnostics_msg.status.data[0].values.data[0].value, buffer);
-
-    snprintf(buffer, sizeof(buffer), "%lu", uptime_ms);
-    rosidl_runtime_c__String__assign(&diagnostics_msg.status.data[0].values.data[1].value, buffer);
-
-
-    rosidl_runtime_c__String__assign(&diagnostics_msg.status.data[0].message, g_debug_msg);
-
-
-    uint32_t tick = HAL_GetTick();
-    diagnostics_msg.header.stamp.sec = tick / 1000;
-    diagnostics_msg.header.stamp.nanosec = (tick % 1000) * 1000000;
-
-    rcl_ret_t ret = rcl_publish(&diagnostics_pub, &diagnostics_msg, NULL);
-    (void)ret;
-}
-*/
 /* USER CODE END Application */
 

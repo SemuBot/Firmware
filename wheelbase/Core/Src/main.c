@@ -2,7 +2,7 @@
 /**
   ******************************************************************************
   * @file           : main.c
-  * @brief          : Main program body - Switched to MOTOR 2
+  * @brief          : Main program body
   ******************************************************************************
   */
 /* USER CODE END Header */
@@ -31,8 +31,9 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-extern motor_st motor1, motor2, motor3;
+
 DRV8353_Handle drv_motor1, drv_motor2, drv_motor3;
+
 motor_st motor1 = {
     .dir_port = motor1_dir_GPIO_Port,
     .dir_pin = motor1_dir_Pin,
@@ -40,7 +41,6 @@ motor_st motor1 = {
     .pwm_port = motor1_pwm_GPIO_Port,
     .pwm_pin = motor1_pwm_Pin,
     .duty_cycle = 0.0,
-    .duty_cycle_limit = DUTY_CYCLE_LIMIT,
     .drv_handle = &drv_motor1
 };
 
@@ -51,7 +51,6 @@ motor_st motor2 = {
     .pwm_port = motor2_pwm_GPIO_Port,
     .pwm_pin = motor2_pwm_Pin,
     .duty_cycle = 0.0,
-    .duty_cycle_limit = DUTY_CYCLE_LIMIT,
     .drv_handle = &drv_motor2
 };
 
@@ -62,7 +61,6 @@ motor_st motor3 = {
     .pwm_port = motor3_pwm_GPIO_Port,
     .pwm_pin = motor3_pwm_Pin,
     .duty_cycle = 0.0,
-    .duty_cycle_limit = DUTY_CYCLE_LIMIT,
     .drv_handle = &drv_motor3
 };
 /* USER CODE END PD */
@@ -81,7 +79,6 @@ motor_st motor3 = {
 void SystemClock_Config(void);
 void MX_FREERTOS_Init(void);
 /* USER CODE BEGIN PFP */
-extern char debug_msg[256];
 
 /* USER CODE END PFP */
 
@@ -119,7 +116,7 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_SPI1_Init();
+  //MX_SPI1_Init();
   MX_SPI2_Init();
   MX_TIM1_Init();
   MX_TIM3_Init();
@@ -181,23 +178,62 @@ int main(void)
   HAL_GPIO_WritePin(motor3_nBRAKE_GPIO_Port, motor3_nBRAKE_Pin, GPIO_PIN_RESET);
   HAL_Delay(10);
 
-  snprintf(debug_msg, sizeof(debug_msg), "Setting ENABLE HIGH...\r\n");
-  CDC_Transmit_FS((uint8_t *)debug_msg, strlen(debug_msg));
   HAL_GPIO_WritePin(enable_GPIO_Port, enable_Pin, GPIO_PIN_SET);
   HAL_Delay(100);
 
-  // Test SPI
-  snprintf(debug_msg, sizeof(debug_msg), "Testing SPI M1, M2, M3...\r\n");
-  CDC_Transmit_FS((uint8_t *)debug_msg, strlen(debug_msg));
-  DRV8353_RawSPITest(&drv_motor1);
-  DRV8353_RawSPITest(&drv_motor2);
-  DRV8353_RawSPITest(&drv_motor3);
 
+
+  /*
+   *
+   * driver_ctrl  = 0x0040  (Driver Control, address 0x02)
+   * 0000000001000000
+   *   [10]   OCP_ACT   = 0  — only the faulting half-bridge shuts down on OCP
+   *   [9]    DIS_GDUV  = 0  — VCP/VGLS undervoltage lockout fault enabled
+   *   [8]    DIS_GDF   = 0  — gate drive fault enabled
+   *   [7]    OTW_REP   = 0  — overtemperature warning not reported on nFAULT
+   *   [6:5]  PWM_MODE  = 10 — 1x PWM mode (direction pin + PWM pin)
+   *   [4]    1PWM_COM  = 0  — synchronous rectification
+   *   [3]    1PWM_DIR  = 0  — direction sourced from pin only
+   *   [2]    COAST     = 0  — not coasting
+   *   [1]    BRAKE     = 0  — brake off
+   *   [0]    CLR_FLT   = 0  — no fault clear
+   *
+   * gate_hs_ctrl = 0x0300  (Gate Drive HS, address 0x03)
+   * 0000001100000000
+   *   [10:8] LOCK       = 011 — registers unlocked
+   *   [7:4]  IDRIVEP_HS = 0000 — 50 mA HS gate source current
+   *   [3:0]  IDRIVEN_HS = 0000 — 100 mA HS gate sink current
+   *
+   * gate_ls_ctrl = 0x0300  (Gate Drive LS, address 0x04)
+   * 0000001100000000
+   *   [10]   CBC        = 0  — OCP fault clears after tRETRY only
+   *   [9:8]  TDRIVE     = 11 — 4000 ns peak gate-current drive time
+   *   [7:4]  IDRIVEP_LS = 0000 — 50 mA LS gate source current
+   *   [3:0]  IDRIVEN_LS = 0000 — 100 mA LS gate sink current
+   *
+   * ocp_ctrl     = 0x012D  (OCP Control, address 0x05)
+   * 0000000100101101
+   *   [10]   TRETRY     = 0  — OCP retry time 8 ms
+   *   [9:8]  DEAD_TIME  = 01 — 100 ns dead time
+   *   [7:6]  OCP_MODE   = 01 — automatic retry on overcurrent
+   *   [5:4]  OCP_DEG    = 10 — 4 µs overcurrent deglitch
+   *   [3:0]  VDS_LVL    = 1101 — 1.0 V VDS overcurrent threshold
+   *
+   * csa_ctrl     = 0x0123  (CSA Control, address 0x06)
+   * 0000000100100011
+   *   [10]   CSA_FET    = 0  — sense amplifier positive input = SPx
+   *   [9]    VREF_DIV   = 0  — reference = VREF (unidirectional mode)
+   *   [8]    LS_REF     = 1  — LS VDS_OCP measured SHx to SNx
+   *   [7:6]  CSA_GAIN   = 01 — 10 V/V shunt amplifier gain
+   *   [5]    DIS_SEN    = 0  — sense OCP enabled
+   *   [4:2]  CSA_CAL_x  = 000 — normal amplifier operation
+   *   [1:0]  SEN_LVL    = 11 — sense OCP threshold 1.0 V
+   */
 
   uint16_t driver_ctrl = 0x0040;
   uint16_t gate_hs_ctrl = 0x0300;
   uint16_t gate_ls_ctrl = 0x0300;
-  uint16_t ocp_ctrl = 0x012D;
+  uint16_t ocp_ctrl = 0x0129;
   uint16_t csa_ctrl = 0x0123;
 
   // M1
@@ -221,9 +257,6 @@ int main(void)
   DRV8353_WriteRegister(&drv_motor3, DRV8353_REG_OCP_CONTROL, ocp_ctrl);
   DRV8353_WriteRegister(&drv_motor3, DRV8353_REG_CSA_CONTROL, csa_ctrl);
 
-  snprintf(debug_msg, sizeof(debug_msg), "Configuration Complete.\r\n");
-  CDC_Transmit_FS((uint8_t *)debug_msg, strlen(debug_msg));
-
   HAL_GPIO_WritePin(motor1_nBRAKE_GPIO_Port, motor1_nBRAKE_Pin, GPIO_PIN_SET);
   HAL_GPIO_WritePin(motor2_nBRAKE_GPIO_Port, motor2_nBRAKE_Pin, GPIO_PIN_SET);
   HAL_GPIO_WritePin(motor3_nBRAKE_GPIO_Port, motor3_nBRAKE_Pin, GPIO_PIN_SET);
@@ -234,14 +267,9 @@ int main(void)
   DRV8353_CalibrateCSAs(&drv_motor2);
   DRV8353_CalibrateCSAs(&drv_motor3);
 
-  snprintf(debug_msg, sizeof(debug_msg), "Setting directions...\r\n");
-    CDC_Transmit_FS((uint8_t *)debug_msg, strlen(debug_msg));
-    HAL_Delay(10);
   HAL_GPIO_WritePin(motor1.dir_port, motor1.dir_pin, GPIO_PIN_SET);
   HAL_GPIO_WritePin(motor2.dir_port, motor2.dir_pin, GPIO_PIN_SET);
   HAL_GPIO_WritePin(motor3.dir_port, motor3.dir_pin, GPIO_PIN_SET);
-    CDC_Transmit_FS((uint8_t *)debug_msg, strlen(debug_msg));
-    HAL_Delay(10);
 
   /* USER CODE END 2 */
 

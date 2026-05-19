@@ -70,11 +70,11 @@ void Error_Handler(void);
 #define motor2_Cs_Pin GPIO_PIN_4
 #define motor2_Cs_GPIO_Port GPIOA
 #define motor2_dir_Pin GPIO_PIN_5
-#define motor2_dir_GPIO_Port GPIOC
+#define motor2_dir_GPIO_Port GPIOA
 #define motor2_pwm_Pin GPIO_PIN_6
-#define motor2_pwm_GPIO_Port GPIOC
-#define motor3_nBRAKE_Pin GPIO_PIN_0
-#define motor3_nBRAKE_GPIO_Port GPIOB
+#define motor2_pwm_GPIO_Port GPIOA
+#define motor3_nBRAKE_Pin GPIO_PIN_7
+#define motor3_nBRAKE_GPIO_Port GPIOA
 #define motor3_dir_Pin GPIO_PIN_4
 #define motor3_dir_GPIO_Port GPIOC
 #define motor3_Cs_Pin GPIO_PIN_1
